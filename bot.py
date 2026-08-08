@@ -22,7 +22,7 @@ bot_status = {
     "activo_actual": "Ninguno",
     "posicion": "SIN POSICIÓN (Escaneando)",
     "precio_entrada": "0.0000",
-    "servidor": "Render Cloud",
+    "servidor": "Render Cloud EU",
     "logs": []
 }
 
@@ -30,134 +30,404 @@ def registrar_log(mensaje):
     timestamp = time.strftime('%H:%M:%S')
     linea = f"[{timestamp}] {mensaje}"
     print(linea)
-    bot_status["logs"].insert(0, linea)
-    if len(bot_status["logs"]) > 40:
+    bot_status["logs"].insert(0, (timestamp, mensaje))
+    if len(bot_status["logs"]) > 50:
         bot_status["logs"].pop()
 
-# Dashboard HTML profesional con autorrefresco cada 5 segundos
+# Dashboard HTML Ultra-Pro con diseño Glassmorphism y Tipografía de TradingView
 class DashboardWebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         
-        logs_html = "".join([f"<div class='log-line'>{l}</div>" for l in bot_status["logs"]])
+        # Formateo dinámico con colores según el tipo de log
+        logs_rendered = []
+        for ts, msg in bot_status["logs"]:
+            color = "#00f2fe" # Azul cian por defecto
+            if "ENTRADA" in msg or "🚀" in msg:
+                color = "#0ecb81" # Verde esmeralda
+            elif "CIERRE" in msg or "🏁" in msg:
+                color = "#f0b90b" # Dorado
+            elif "STOP LOSS" in msg or "❌" in msg:
+                color = "#f6465d" # Rojo carmesí
+            
+            logs_rendered.append(f"""
+            <div class="log-row">
+                <span class="log-time">[{ts}]</span>
+                <span class="log-msg" style="color: {color};">{msg}</span>
+            </div>
+            """)
         
+        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando sistema de escaneo...</span></div>"
+        
+        # Determinar estilo del badge de posición
+        pos_str = bot_status["posicion"]
+        pos_badge_color = "#848e9c"
+        if "LONG" in pos_str:
+            pos_badge_color = "#0ecb81"
+        elif "SHORT" in pos_str:
+            pos_badge_color = "#f6465d"
+        elif "Escaneando" in pos_str:
+            pos_badge_color = "#f0b90b"
+
         html = f"""
         <!DOCTYPE html>
-        <html lang="es">
+        <html lang="en">
         <head>
             <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta http-equiv="refresh" content="5">
-            <title>Dashboard | Bot Binance Futuros</title>
+            <title>Quantitative AI Terminal | Binance Futures</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
             <style>
-                body {{
-                    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-                    background-color: #0b0e11;
-                    color: #eaecef;
-                    margin: 0;
-                    padding: 20px;
+                :root {{
+                    --bg-gradient: radial-gradient(circle at 50% 0%, #1a1e29 0%, #0b0e14 100%);
+                    --panel-bg: rgba(22, 26, 37, 0.75);
+                    --panel-border: rgba(255, 255, 255, 0.08);
+                    --accent-gold: #f0b90b;
+                    --accent-green: #0ecb81;
+                    --accent-red: #f6465d;
+                    --accent-cyan: #00f2fe;
+                    --text-main: #eaecef;
+                    --text-muted: #848e9c;
                 }}
-                .container {{
-                    max-width: 900px;
+                
+                * {{
+                    box-sizing: border-box;
+                    margin: 0;
+                    padding: 0;
+                }}
+                
+                body {{
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                    background: var(--bg-gradient);
+                    color: var(--text-main);
+                    min-height: 100vh;
+                    padding: 24px 16px;
+                }}
+
+                .dashboard {{
+                    max-width: 1100px;
                     margin: 0 auto;
                 }}
-                .header {{
-                    text-align: center;
-                    padding: 20px 0;
-                    border-bottom: 1px solid #1e2329;
+
+                /* Top Navigation & Status Bar */
+                .navbar {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: var(--panel-bg);
+                    backdrop-filter: blur(16px);
+                    -webkit-backdrop-filter: blur(16px);
+                    border: 1px solid var(--panel-border);
+                    border-radius: 14px;
+                    padding: 16px 24px;
+                    margin-bottom: 24px;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
                 }}
-                .header h1 {{
-                    color: #f0b90b;
-                    margin: 0 0 10px 0;
-                    font-size: 26px;
+
+                .brand {{
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
                 }}
-                .grid {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 15px;
-                    margin: 25px 0;
-                }}
-                .card {{
-                    background: #181a20;
-                    border: 1px solid #2b313a;
-                    border-radius: 8px;
-                    padding: 15px;
-                    text-align: center;
-                }}
-                .card-title {{
-                    font-size: 12px;
-                    color: #848e9c;
-                    text-transform: uppercase;
-                    margin-bottom: 5px;
-                }}
-                .card-value {{
-                    font-size: 20px;
-                    font-weight: bold;
-                    color: #0ecb81;
-                }}
-                .terminal {{
-                    background: #121418;
-                    border: 1px solid #2b313a;
-                    border-radius: 8px;
-                    padding: 15px;
-                    font-family: 'Courier New', Courier, monospace;
-                    font-size: 13px;
-                    height: 350px;
-                    overflow-y: auto;
-                }}
-                .terminal-header {{
-                    color: #848e9c;
-                    border-bottom: 1px solid #2b313a;
-                    padding-bottom: 8px;
-                    margin-bottom: 10px;
-                    font-weight: bold;
-                }}
-                .log-line {{
-                    padding: 3px 0;
-                    color: #00ffcc;
-                    border-bottom: 1px solid #181a20;
-                }}
-                .live-badge {{
-                    display: inline-block;
-                    background: #0ecb81;
+
+                .brand-icon {{
+                    width: 38px;
+                    height: 38px;
+                    background: linear-gradient(135deg, #f0b90b 0%, #ff8c00 100%);
+                    border-radius: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 800;
                     color: #000;
-                    font-weight: bold;
-                    padding: 4px 10px;
-                    border-radius: 12px;
+                    font-size: 20px;
+                    box-shadow: 0 0 15px rgba(240, 185, 11, 0.3);
+                }}
+
+                .brand-text h1 {{
+                    font-size: 18px;
+                    font-weight: 700;
+                    letter-spacing: -0.5px;
+                    background: linear-gradient(90deg, #ffffff 0%, #eaecef 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }}
+
+                .brand-text p {{
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    font-weight: 600;
+                    letter-spacing: 0.5px;
+                    text-transform: uppercase;
+                }}
+
+                .status-pill {{
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    background: rgba(14, 203, 129, 0.1);
+                    border: 1px solid rgba(14, 203, 129, 0.3);
+                    color: var(--accent-green);
+                    padding: 6px 14px;
+                    border-radius: 20px;
                     font-size: 12px;
+                    font-weight: 600;
+                }}
+
+                .pulse-dot {{
+                    width: 8px;
+                    height: 8px;
+                    background-color: var(--accent-green);
+                    border-radius: 50%;
+                    box-shadow: 0 0 8px var(--accent-green);
+                    animation: pulse 1.8s infinite ease-in-out;
+                }}
+
+                @keyframes pulse {{
+                    0% {{ transform: scale(0.95); opacity: 0.8; }}
+                    50% {{ transform: scale(1.3); opacity: 1; }}
+                    100% {{ transform: scale(0.95); opacity: 0.8; }}
+                }}
+
+                /* Grid Metrics Cards */
+                .metrics-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+                    gap: 16px;
+                    margin-bottom: 24px;
+                }}
+
+                .metric-card {{
+                    background: var(--panel-bg);
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
+                    border: 1px solid var(--panel-border);
+                    border-radius: 14px;
+                    padding: 20px;
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                }}
+
+                .metric-card:hover {{
+                    transform: translateY(-2px);
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+                }}
+
+                .metric-label {{
+                    font-size: 12px;
+                    color: var(--text-muted);
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-bottom: 8px;
+                }}
+
+                .metric-val {{
+                    font-size: 24px;
+                    font-weight: 800;
+                    letter-spacing: -0.5px;
+                }}
+
+                .metric-sub {{
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    margin-top: 4px;
+                }}
+
+                /* Asset Pool Chips */
+                .assets-bar {{
+                    background: var(--panel-bg);
+                    border: 1px solid var(--panel-border);
+                    border-radius: 14px;
+                    padding: 16px 20px;
+                    margin-bottom: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                    gap: 12px;
+                }}
+
+                .assets-title {{
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                }}
+
+                .asset-chips {{
+                    display: flex;
+                    gap: 8px;
+                }}
+
+                .chip {{
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    padding: 5px 12px;
+                    border-radius: 8px;
+                    font-size: 12px;
+                    font-weight: 700;
+                    letter-spacing: 0.5px;
+                    color: var(--accent-gold);
+                }}
+
+                /* Terminal Window */
+                .terminal-card {{
+                    background: #0d1117;
+                    border: 1px solid var(--panel-border);
+                    border-radius: 14px;
+                    overflow: hidden;
+                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+                }}
+
+                .terminal-header {{
+                    background: #161b22;
+                    padding: 14px 20px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }}
+
+                .terminal-title {{
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: var(--text-muted);
+                    letter-spacing: 1px;
+                    text-transform: uppercase;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }}
+
+                .terminal-dots {{
+                    display: flex;
+                    gap: 6px;
+                }}
+
+                .dot {{
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                }}
+
+                .dot-red {{ background: #ff5f56; }}
+                .dot-yellow {{ background: #ffbd2e; }}
+                .dot-green {{ background: #27c93f; }}
+
+                .terminal-body {{
+                    font-family: 'JetBrains Mono', monospace;
+                    font-size: 12.5px;
+                    padding: 18px;
+                    height: 380px;
+                    overflow-y: auto;
+                    line-height: 1.6;
+                }}
+
+                .log-row {{
+                    display: flex;
+                    gap: 12px;
+                    padding: 4px 0;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+                }}
+
+                .log-time {{
+                    color: #484f58;
+                    font-weight: 600;
+                    user-select: none;
+                }}
+
+                .log-msg {{
+                    flex: 1;
+                    word-break: break-word;
+                }}
+
+                /* Scrollbar Customization */
+                ::-webkit-scrollbar {{
+                    width: 6px;
+                }}
+                ::-webkit-scrollbar-track {{
+                    background: #0d1117;
+                }}
+                ::-webkit-scrollbar-thumb {{
+                    background: #21262d;
+                    border-radius: 4px;
                 }}
             </style>
         </head>
         <body>
-            <div class="container">
-                <div class="header">
-                    <h1>🤖 Bot de Trading Binance Futuros</h1>
-                    <span class="live-badge">🟢 EN VIVO (24/7 NUBE)</span>
-                </div>
-
-                <div class="grid">
-                    <div class="card">
-                        <div class="card-title">Balance en Binance</div>
-                        <div class="card-value">{bot_status["balance"]}</div>
+            <div class="dashboard">
+                <!-- Navigation Bar -->
+                <div class="navbar">
+                    <div class="brand">
+                        <div class="brand-icon">⚡</div>
+                        <div class="brand-text">
+                            <h1>Quant AI Trading System</h1>
+                            <p>Binance USDT-M Futures • 5x Leverage</p>
+                        </div>
                     </div>
-                    <div class="card">
-                        <div class="card-title">Estado Actual</div>
-                        <div class="card-value" style="color: #f0b90b;">{bot_status["posicion"]}</div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">Activo Monitoreado</div>
-                        <div class="card-value" style="color: #479dff;">{bot_status["activo_actual"]}</div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">Apalancamiento</div>
-                        <div class="card-value">5x ISOLATED</div>
+                    <div class="status-pill">
+                        <div class="pulse-dot"></div>
+                        <span>SYSTEM ONLINE (24/7 CLOUD)</span>
                     </div>
                 </div>
 
-                <div class="terminal">
-                    <div class="terminal-header">📟 Registro de Eventos en Tiempo Real (Actualiza cada 5s)</div>
-                    {logs_html}
+                <!-- Metrics Grid -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Account Balance</div>
+                        <div class="metric-val" style="color: var(--accent-gold);">{bot_status["balance"]}</div>
+                        <div class="metric-sub">Real-Time Wallet Balance</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">Engine Position Status</div>
+                        <div class="metric-val" style="color: {pos_badge_color}; font-size: 18px; margin-top: 4px;">{bot_status["posicion"]}</div>
+                        <div class="metric-sub">Strategy: EMA 9/21 + RSI 14</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">Active Target Asset</div>
+                        <div class="metric-val" style="color: var(--accent-cyan);">{bot_status["activo_actual"]}</div>
+                        <div class="metric-sub">Timeframe: 5m Candles</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">Risk Management</div>
+                        <div class="metric-val" style="color: #ffffff; font-size: 18px;">SL -1.2% | TP +2.5%</div>
+                        <div class="metric-sub">Margin: Isolated 5x • VIP 0 Fees Included</div>
+                    </div>
+                </div>
+
+                <!-- Asset Pool Selector Bar -->
+                <div class="assets-bar">
+                    <div class="assets-title">📡 ACTIVE SCANNER POOL (TOP LIQUIDITY PAIRS)</div>
+                    <div class="asset-chips">
+                        <div class="chip">SOL/USDT</div>
+                        <div class="chip">DOGE/USDT</div>
+                        <div class="chip">XRP/USDT</div>
+                        <div class="chip">ADA/USDT</div>
+                    </div>
+                </div>
+
+                <!-- Live Terminal Feed -->
+                <div class="terminal-card">
+                    <div class="terminal-header">
+                        <div class="terminal-title">
+                            <span>📟 REAL-TIME EXECUTION LOG STREAM</span>
+                        </div>
+                        <div class="terminal-dots">
+                            <div class="dot dot-red"></div>
+                            <div class="dot dot-yellow"></div>
+                            <div class="dot dot-green"></div>
+                        </div>
+                    </div>
+                    <div class="terminal-body">
+                        {logs_html}
+                    </div>
                 </div>
             </div>
         </body>
@@ -172,7 +442,7 @@ def iniciar_servidor_web():
     try:
         port = int(os.getenv("PORT", 10000))
         server = HTTPServer(('0.0.0.0', port), DashboardWebHandler)
-        registrar_log(f"Servidor Web de Monitoreo activo en puerto {port}")
+        registrar_log(f"Servidor Web Pro activo en puerto {port}")
         server.serve_forever()
     except Exception as e:
         print(f"Aviso servidor web: {e}")
@@ -410,7 +680,7 @@ class BotFuturosBinance:
                         timestamp = time.strftime('%H:%M:%S')
                         bot_status["posicion"] = "SIN POSICIÓN (Escaneando)"
                         bot_status["activo_actual"] = f"Escaneando {len(config.ASSET_POOL)} activos"
-                        if len(bot_status["logs"]) == 0 or "Escaneando" not in bot_status["logs"][0]:
+                        if len(bot_status["logs"]) == 0 or "Escaneando" not in bot_status["logs"][0][1]:
                             registrar_log(f"Escaneando {config.ASSET_POOL}... Buscando oportunidad...")
 
                 else:

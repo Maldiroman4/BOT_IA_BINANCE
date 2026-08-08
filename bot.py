@@ -16,16 +16,24 @@ from binance.exceptions import BinanceAPIException
 import ta
 import config
 
-# Estado global y logs para el Dashboard Web en vivo
+# Estado global, estadísticas y métricas avanzadas para el Dashboard Web
 bot_status = {
     "balance": "Conectando...",
+    "balance_inicial": 2.60,
     "estado": "Inicializando...",
     "activo_actual": "Ninguno",
     "posicion": "SIN POSICIÓN (Escaneando)",
     "precio_entrada": "0.0000",
+    "precio_actual": "0.0000",
+    "direccion_flecha": "➡️",
     "stop_loss": "N/A",
     "take_profit": "N/A",
     "servidor": "Render Cloud EU",
+    "wins": 0,
+    "losses": 0,
+    "pnl_total_usd": 0.0,
+    "asset_counts": {"SOLUSDT": 0, "DOGEUSDT": 0, "XRPUSDT": 0, "ADAUSDT": 0},
+    "trades": [],
     "logs": []
 }
 
@@ -37,7 +45,7 @@ def registrar_log(mensaje):
     if len(bot_status["logs"]) > 50:
         bot_status["logs"].pop()
 
-# Dashboard HTML Ultra-Pro con Fondos Espaciales Rotativos
+# Dashboard HTML Ultra-Pro con Gráficos Interactivos, Pie Chart y Flechas de Tendencia
 class DashboardWebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -70,14 +78,46 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         
         logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando sistema de escaneo...</span></div>"
         
+        # Generar Filas del Historial de Operaciones
+        trades_rendered = []
+        for t in bot_status["trades"]:
+            badge_cls = "badge-green" if t["pnl_usd"] >= 0 else "badge-red"
+            trades_rendered.append(f"""
+            <tr>
+                <td>{t["time"]}</td>
+                <td><strong>{t["symbol"]}</strong></td>
+                <td><span class="{badge_cls}">{t["side"]}</span></td>
+                <td>${t["entry"]:.4f}</td>
+                <td>${t["exit"]:.4f}</td>
+                <td style="color: {'#0ecb81' if t['pnl_usd']>=0 else '#f6465d'}; font-weight: bold;">{t['pnl_usd']:+.4f} USDT</td>
+                <td><small>{t["reason"]}</small></td>
+            </tr>
+            """)
+        
+        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún. El bot está escaneando las mejores oportunidades.</td></tr>"
+
+        # Cálculos de Métricas de Ganancia / Pérdida
+        total_trades = bot_status["wins"] + bot_status["losses"]
+        win_rate = (bot_status["wins"] / total_trades * 100) if total_trades > 0 else 0.0
+        
         pos_str = bot_status["posicion"]
         pos_badge_color = "#848e9c"
+        arrow_icon = "➡️"
         if "LONG" in pos_str:
             pos_badge_color = "#0ecb81"
+            arrow_icon = "⬆️"
         elif "SHORT" in pos_str:
             pos_badge_color = "#f6465d"
+            arrow_icon = "⬇️"
         elif "Escaneando" in pos_str:
             pos_badge_color = "#f0b90b"
+            arrow_icon = "🔍"
+
+        # Datos para el gráfico de torta (Pie Chart)
+        sol_c = bot_status["asset_counts"].get("SOLUSDT", 0)
+        doge_c = bot_status["asset_counts"].get("DOGEUSDT", 0)
+        xrp_c = bot_status["asset_counts"].get("XRPUSDT", 0)
+        ada_c = bot_status["asset_counts"].get("ADAUSDT", 0)
 
         html = f"""
         <!DOCTYPE html>
@@ -90,9 +130,10 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
             <style>
                 :root {{
-                    --panel-bg: rgba(15, 18, 26, 0.78);
+                    --panel-bg: rgba(15, 18, 26, 0.82);
                     --panel-border: rgba(255, 255, 255, 0.12);
                     --accent-gold: #f0b90b;
                     --accent-green: #0ecb81;
@@ -102,11 +143,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     --text-muted: #a0aec0;
                 }}
                 
-                * {{
-                    box-sizing: border-box;
-                    margin: 0;
-                    padding: 0;
-                }}
+                * {{ box-sizing: border-box; margin: 0; padding: 0; }}
                 
                 body {{
                     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -125,17 +162,14 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 body::before {{
                     content: '';
                     position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
+                    top: 0; left: 0; right: 0; bottom: 0;
                     background: rgba(5, 7, 12, 0.75);
                     z-index: 0;
                     pointer-events: none;
                 }}
 
                 .dashboard {{
-                    max-width: 1100px;
+                    max-width: 1150px;
                     margin: 0 auto;
                     position: relative;
                     z-index: 1;
@@ -155,61 +189,40 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
                 }}
 
-                .brand {{
-                    display: flex;
-                    align-items: center;
-                    gap: 14px;
-                }}
+                .brand {{ display: flex; align-items: center; gap: 14px; }}
 
                 .brand-icon {{
-                    width: 44px;
-                    height: 44px;
+                    width: 44px; height: 44px;
                     background: linear-gradient(135deg, #f0b90b 0%, #ff8c00 100%);
                     border-radius: 12px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: 800;
-                    color: #000;
-                    font-size: 24px;
+                    display: flex; align-items: center; justify-content: center;
+                    font-weight: 800; color: #000; font-size: 24px;
                     box-shadow: 0 0 20px rgba(240, 185, 11, 0.4);
                 }}
 
                 .brand-text h1 {{
-                    font-size: 20px;
-                    font-weight: 800;
-                    letter-spacing: -0.5px;
+                    font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
                     background: linear-gradient(90deg, #ffffff 0%, #f0b90b 100%);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
+                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
                 }}
 
                 .brand-text p {{
-                    font-size: 11px;
-                    color: var(--text-muted);
-                    font-weight: 600;
-                    letter-spacing: 0.5px;
-                    text-transform: uppercase;
+                    font-size: 11px; color: var(--text-muted); font-weight: 600;
+                    letter-spacing: 0.5px; text-transform: uppercase;
                 }}
 
                 .status-pill {{
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
+                    display: flex; align-items: center; gap: 8px;
                     background: rgba(14, 203, 129, 0.15);
                     border: 1px solid rgba(14, 203, 129, 0.4);
                     color: var(--accent-green);
-                    padding: 8px 16px;
-                    border-radius: 20px;
-                    font-size: 12px;
-                    font-weight: 700;
+                    padding: 8px 16px; border-radius: 20px;
+                    font-size: 12px; font-weight: 700;
                 }}
 
                 .pulse-dot {{
-                    width: 9px;
-                    height: 9px;
-                    background-color: var(--accent-green);
-                    border-radius: 50%;
+                    width: 9px; height: 9px;
+                    background-color: var(--accent-green); border-radius: 50%;
                     box-shadow: 0 0 10px var(--accent-green);
                     animation: pulse 1.8s infinite ease-in-out;
                 }}
@@ -222,18 +235,15 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 .metrics-grid {{
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-                    gap: 16px;
-                    margin-bottom: 24px;
+                    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                    gap: 16px; margin-bottom: 24px;
                 }}
 
                 .metric-card {{
                     background: var(--panel-bg);
-                    backdrop-filter: blur(20px);
-                    -webkit-backdrop-filter: blur(20px);
+                    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border);
-                    border-radius: 16px;
-                    padding: 22px;
+                    border-radius: 16px; padding: 22px;
                     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
                     transition: transform 0.25s ease, box-shadow 0.25s ease;
                 }}
@@ -244,147 +254,109 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 }}
 
                 .metric-label {{
-                    font-size: 12px;
-                    color: var(--text-muted);
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                    margin-bottom: 8px;
+                    font-size: 12px; color: var(--text-muted); font-weight: 600;
+                    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
                 }}
 
-                .metric-val {{
-                    font-size: 26px;
-                    font-weight: 800;
-                    letter-spacing: -0.5px;
+                .metric-val {{ font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }}
+                .metric-sub {{ font-size: 11px; color: var(--text-muted); margin-top: 6px; }}
+
+                /* Layout de 2 Columnas para Gráficos y Métricas */
+                .two-col {{
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 20px;
+                    margin-bottom: 24px;
                 }}
 
-                .metric-sub {{
-                    font-size: 11px;
-                    color: var(--text-muted);
-                    margin-top: 6px;
+                @media (max-width: 850px) {{
+                    .two-col {{ grid-template-columns: 1fr; }}
                 }}
 
-                .assets-bar {{
+                .chart-card {{
                     background: var(--panel-bg);
                     backdrop-filter: blur(20px);
-                    -webkit-backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border);
                     border-radius: 16px;
-                    padding: 16px 22px;
-                    margin-bottom: 24px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    flex-wrap: wrap;
-                    gap: 12px;
-                    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+                    padding: 20px;
+                    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
                 }}
 
-                .assets-title {{
-                    font-size: 13px;
-                    font-weight: 700;
-                    color: var(--text-muted);
-                    letter-spacing: 0.5px;
+                .chart-header {{
+                    font-size: 13px; font-weight: 700; color: var(--text-muted);
+                    margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;
                 }}
 
-                .asset-chips {{
-                    display: flex;
-                    gap: 10px;
+                /* Barra de Progreso Win Rate */
+                .progress-container {{
+                    background: rgba(255, 255, 255, 0.08);
+                    border-radius: 10px; height: 16px; overflow: hidden; margin: 12px 0;
                 }}
 
-                .chip {{
-                    background: rgba(240, 185, 11, 0.12);
-                    border: 1px solid rgba(240, 185, 11, 0.3);
-                    padding: 6px 14px;
-                    border-radius: 10px;
-                    font-size: 12px;
-                    font-weight: 800;
-                    letter-spacing: 0.5px;
-                    color: var(--accent-gold);
+                .progress-bar {{
+                    background: linear-gradient(90deg, #0ecb81 0%, #00f2fe 100%);
+                    height: 100%; border-radius: 10px; transition: width 0.5s ease;
                 }}
+
+                /* Acordeón Desplegable para Historial */
+                details {{
+                    background: var(--panel-bg);
+                    backdrop-filter: blur(20px);
+                    border: 1px solid var(--panel-border);
+                    border-radius: 16px;
+                    margin-bottom: 24px; overflow: hidden;
+                    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+                }}
+
+                summary {{
+                    padding: 18px 24px; font-weight: 700; font-size: 14px;
+                    cursor: pointer; color: var(--accent-gold);
+                    display: flex; justify-content: space-between; align-items: center;
+                    user-select: none;
+                }}
+
+                summary:hover {{ background: rgba(255, 255, 255, 0.03); }}
+
+                table {{
+                    width: 100%; border-collapse: collapse; font-size: 12.5px;
+                }}
+
+                th, td {{
+                    padding: 12px 16px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                }}
+
+                th {{ background: rgba(0, 0, 0, 0.3); color: var(--text-muted); text-transform: uppercase; font-size: 11px; }}
+
+                .badge-green {{ background: rgba(14, 203, 129, 0.2); color: #0ecb81; padding: 3px 8px; border-radius: 6px; font-weight: 700; }}
+                .badge-red {{ background: rgba(246, 70, 93, 0.2); color: #f6465d; padding: 3px 8px; border-radius: 6px; font-weight: 700; }}
 
                 .terminal-card {{
                     background: rgba(10, 13, 20, 0.92);
                     backdrop-filter: blur(20px);
-                    -webkit-backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border);
-                    border-radius: 16px;
-                    overflow: hidden;
+                    border-radius: 16px; overflow: hidden;
                     box-shadow: 0 16px 50px rgba(0, 0, 0, 0.7);
                 }}
 
                 .terminal-header {{
-                    background: rgba(22, 27, 38, 0.9);
-                    padding: 16px 22px;
+                    background: rgba(22, 27, 38, 0.9); padding: 16px 22px;
                     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
+                    display: flex; justify-content: space-between; align-items: center;
                 }}
 
                 .terminal-title {{
-                    font-size: 12px;
-                    font-weight: 700;
-                    color: var(--text-muted);
-                    letter-spacing: 1px;
-                    text-transform: uppercase;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
+                    font-size: 12px; font-weight: 700; color: var(--text-muted);
+                    letter-spacing: 1px; text-transform: uppercase;
                 }}
-
-                .terminal-dots {{
-                    display: flex;
-                    gap: 6px;
-                }}
-
-                .dot {{
-                    width: 11px;
-                    height: 11px;
-                    border-radius: 50%;
-                }}
-
-                .dot-red {{ background: #ff5f56; }}
-                .dot-yellow {{ background: #ffbd2e; }}
-                .dot-green {{ background: #27c93f; }}
 
                 .terminal-body {{
-                    font-family: 'JetBrains Mono', monospace;
-                    font-size: 13px;
-                    padding: 20px;
-                    height: 390px;
-                    overflow-y: auto;
-                    line-height: 1.65;
+                    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+                    padding: 20px; height: 350px; overflow-y: auto; line-height: 1.65;
                 }}
 
-                .log-row {{
-                    display: flex;
-                    gap: 14px;
-                    padding: 5px 0;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-                }}
-
-                .log-time {{
-                    color: #6e7681;
-                    font-weight: 600;
-                    user-select: none;
-                }}
-
-                .log-msg {{
-                    flex: 1;
-                    word-break: break-word;
-                }}
-
-                ::-webkit-scrollbar {{
-                    width: 6px;
-                }}
-                ::-webkit-scrollbar-track {{
-                    background: rgba(0, 0, 0, 0.2);
-                }}
-                ::-webkit-scrollbar-thumb {{
-                    background: rgba(255, 255, 255, 0.15);
-                    border-radius: 4px;
-                }}
+                .log-row {{ display: flex; gap: 14px; padding: 5px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }}
+                .log-time {{ color: #6e7681; font-weight: 600; }}
+                .log-msg {{ flex: 1; word-break: break-word; }}
             </style>
             <script>
                 const bgImages = [
@@ -400,6 +372,27 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         currentIdx = (currentIdx + 1) % bgImages.length;
                         document.body.style.backgroundImage = `url('${{bgImages[currentIdx]}}')`;
                     }}, 5000);
+
+                    // Inicializar Gráfico de Torta (Pie Chart de Activos Usados)
+                    const ctx = document.getElementById('assetChart').getContext('2d');
+                    new Chart(ctx, {{
+                        type: 'doughnut',
+                        data: {{
+                            labels: ['SOL/USDT', 'DOGE/USDT', 'XRP/USDT', 'ADA/USDT'],
+                            datasets: [{{
+                                data: [{sol_c}, {doge_c}, {xrp_c}, {ada_c}],
+                                backgroundColor: ['#f0b90b', '#0ecb81', '#00f2fe', '#9b51e0'],
+                                borderWidth: 0
+                            }}]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {{
+                                legend: {{ position: 'bottom', labels: {{ color: '#eaecef', font: {{ family: 'Inter' }} }} }}
+                            }}
+                        }}
+                    }});
                 }});
             </script>
         </head>
@@ -419,6 +412,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
                 </div>
 
+                <!-- Métricas Principales -->
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <div class="metric-label">Account Balance</div>
@@ -428,7 +422,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                     <div class="metric-card">
                         <div class="metric-label">Engine Position Status</div>
-                        <div class="metric-val" style="color: {pos_badge_color}; font-size: 19px; margin-top: 4px;">{bot_status["posicion"]}</div>
+                        <div class="metric-val" style="color: {pos_badge_color}; font-size: 19px; margin-top: 4px;">{arrow_icon} {bot_status["posicion"]}</div>
                         <div class="metric-sub">Strategy: EMA 9/21 + RSI 14</div>
                     </div>
 
@@ -440,21 +434,65 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                     <div class="metric-card">
                         <div class="metric-label">Binance Native Orders</div>
-                        <div class="metric-val" style="color: #ffffff; font-size: 17px; margin-top: 4px;">SL: {bot_status["stop_loss"]} | TP: {bot_status["take_profit"]}</div>
+                        <div class="metric-val" style="color: #ffffff; font-size: 16px; margin-top: 4px;">SL: {bot_status["stop_loss"]} | TP: {bot_status["take_profit"]}</div>
                         <div class="metric-sub">Exchange-Side STOP/TP • 5x Isolated</div>
                     </div>
                 </div>
 
-                <div class="assets-bar">
-                    <div class="assets-title">📡 ACTIVE SCANNER POOL (TOP LIQUIDITY PAIRS)</div>
-                    <div class="asset-chips">
-                        <div class="chip">SOL/USDT</div>
-                        <div class="chip">DOGE/USDT</div>
-                        <div class="chip">XRP/USDT</div>
-                        <div class="chip">ADA/USDT</div>
+                <!-- Segunda Sección: Rendimiento y Gráfico de Torta -->
+                <div class="two-col">
+                    <!-- Rendimiento de Ganancias/Pérdidas -->
+                    <div class="chart-card">
+                        <div class="chart-header">📊 Rendimiento de Operaciones (Win Rate &amp; PnL)</div>
+                        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold;">
+                            <span>Tasa de Acierto: {win_rate:.1f}%</span>
+                            <span style="color: {'#0ecb81' if bot_status['pnl_total_usd']>=0 else '#f6465d'};">PnL Acumulado: {bot_status['pnl_total_usd']:+.4f} USDT</span>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: {max(win_rate, 5)}%;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+                            <span>🟢 Operaciones Ganadas: {bot_status['wins']}</span>
+                            <span>🔴 Operaciones Perdedoras: {bot_status['losses']}</span>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico de Torta de Activos Usados -->
+                    <div class="chart-card">
+                        <div class="chart-header">🍕 Distribución de Criptomonedas Operadas</div>
+                        <div style="height: 140px; position: relative;">
+                            <canvas id="assetChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
+                <!-- Historial Desplegable de Operaciones -->
+                <details open>
+                    <summary>
+                        <span>📜 HISTORIAL DE OPERACIONES REALIZADAS</span>
+                        <span style="font-size: 12px; color: var(--text-muted);">▼ Haz clic para contraer/desplegar</span>
+                    </summary>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha / Hora</th>
+                                    <th>Criptomoneda</th>
+                                    <th>Tipo</th>
+                                    <th>Entrada</th>
+                                    <th>Salida</th>
+                                    <th>Beneficio Neto</th>
+                                    <th>Motivo Cierre</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {trades_html}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+
+                <!-- Consola Terminal en Vivo -->
                 <div class="terminal-card">
                     <div class="terminal-header">
                         <div class="terminal-title">
@@ -761,8 +799,9 @@ class BotFuturosBinance:
         comision_entrada = valor_nocional * self.fee_rate
         self.margin -= comision_entrada
 
+        flecha = "⬆️" if side == 'LONG' else "⬇️"
         bot_status["activo_actual"] = symbol
-        bot_status["posicion"] = f"POSICIÓN {side} @ ${price:.4f}"
+        bot_status["posicion"] = f"{flecha} POSICIÓN {side} @ ${price:.4f}"
         bot_status["precio_entrada"] = f"{price:.4f}"
         bot_status["stop_loss"] = f"${sl_price:.4f}"
         bot_status["take_profit"] = f"${tp_price:.4f}"
@@ -806,8 +845,26 @@ class BotFuturosBinance:
         ganancia_neta = ganancia_bruta - comision_salida
         self.margin += (self.entry_price * self.position_qty / self.leverage) + ganancia_neta
 
+        # Registrar estadísticas de la operación para el Historial y Gráficos del Dashboard
+        trade_record = {
+            "time": time.strftime('%Y-%m-%d %H:%M:%S'),
+            "symbol": self.current_symbol,
+            "side": self.position,
+            "entry": self.entry_price,
+            "exit": price,
+            "pnl_usd": ganancia_neta,
+            "reason": motivo
+        }
+        bot_status["trades"].insert(0, trade_record)
+        bot_status["asset_counts"][self.current_symbol] = bot_status["asset_counts"].get(self.current_symbol, 0) + 1
+        bot_status["pnl_total_usd"] += ganancia_neta
+        if ganancia_neta >= 0:
+            bot_status["wins"] += 1
+        else:
+            bot_status["losses"] += 1
+
         self.sincronizar_saldo_binance()
-        bot_status["posicion"] = "SIN POSICIÓN (Escaneando)"
+        bot_status["posicion"] = "🔍 SIN POSICIÓN (Escaneando)"
         bot_status["activo_actual"] = "Ninguno"
         bot_status["stop_loss"] = "N/A"
         bot_status["take_profit"] = "N/A"
@@ -841,9 +898,9 @@ class BotFuturosBinance:
                 if self.position is None:
                     activo, direccion, precio = self.escanear_mercado()
                     if activo:
-                        self.abrir_posicion(activo, direccion, precio)
+                        self.abrir_posicion(activo, direccion, price=precio)
                     else:
-                        bot_status["posicion"] = "SIN POSICIÓN (Escaneando)"
+                        bot_status["posicion"] = "🔍 SIN POSICIÓN (Escaneando)"
                         bot_status["activo_actual"] = f"Escaneando {len(config.ASSET_POOL)} activos"
                         if len(bot_status["logs"]) == 0 or "Escaneando" not in bot_status["logs"][0][1]:
                             registrar_log(f"Escaneando {config.ASSET_POOL}... Buscando oportunidad...")
@@ -853,7 +910,8 @@ class BotFuturosBinance:
                     precio_actual = df.iloc[-1]['close']
                     long_sig, short_sig, _, _, _ = self.evaluar_senales(df)
 
-                    bot_status["posicion"] = f"POSICIÓN {self.position} ({self.current_symbol})"
+                    flecha = "⬆️" if self.position == 'LONG' else "⬇️"
+                    bot_status["posicion"] = f"{flecha} POSICIÓN {self.position} ({self.current_symbol})"
                     bot_status["activo_actual"] = f"${precio_actual:.4f} (Entrada: ${self.entry_price:.4f})"
 
                     if self.position == 'LONG' and short_sig:

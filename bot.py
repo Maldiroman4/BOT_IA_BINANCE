@@ -78,7 +78,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta http-equiv="refresh" content="5">
-            <title>Quantitative AI Terminal | Binance Futures</title>
+            <title>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS</title>
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -136,8 +136,8 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 }}
 
                 .brand-icon {{
-                    width: 38px;
-                    height: 38px;
+                    width: 42px;
+                    height: 42px;
                     background: linear-gradient(135deg, #f0b90b 0%, #ff8c00 100%);
                     border-radius: 10px;
                     display: flex;
@@ -145,15 +145,15 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     justify-content: center;
                     font-weight: 800;
                     color: #000;
-                    font-size: 20px;
+                    font-size: 22px;
                     box-shadow: 0 0 15px rgba(240, 185, 11, 0.3);
                 }}
 
                 .brand-text h1 {{
-                    font-size: 18px;
-                    font-weight: 700;
+                    font-size: 19px;
+                    font-weight: 800;
                     letter-spacing: -0.5px;
-                    background: linear-gradient(90deg, #ffffff 0%, #eaecef 100%);
+                    background: linear-gradient(90deg, #ffffff 0%, #f0b90b 100%);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                 }}
@@ -363,10 +363,10 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 <!-- Navigation Bar -->
                 <div class="navbar">
                     <div class="brand">
-                        <div class="brand-icon">⚡</div>
+                        <div class="brand-icon">🔥</div>
                         <div class="brand-text">
-                            <h1>Quant AI Trading System</h1>
-                            <p>Binance USDT-M Futures • 5x Leverage</p>
+                            <h1>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS</h1>
+                            <p>Binance USDT-M Futures • 5x Leverage System</p>
                         </div>
                     </div>
                     <div class="status-pill">

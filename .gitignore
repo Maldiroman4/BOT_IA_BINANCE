@@ -1,0 +1,15 @@
+# Excluir claves secretas y datos sensibles
+.env
+*.env
+
+# Python cache y entornos
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+env/
+.idea/
+.vscode/

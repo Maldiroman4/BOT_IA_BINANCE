@@ -3,6 +3,7 @@ import io
 import os
 import threading
 import urllib.request
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # Forzar codificación UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -478,7 +479,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         return
 
-# Auto-Keep-Alive interno para evitar que Render duerma la aplicación
 def auto_keep_alive():
     time.sleep(10)
     app_url = os.getenv("RENDER_EXTERNAL_URL", "http://localhost:10000")
@@ -539,7 +539,6 @@ class BotFuturosBinance:
                     modo_str = "Hedge Mode" if self.hedge_mode else "One-Way Mode"
                     registrar_log(f"Modo de Posición: {modo_str}")
                     
-                    # Cargar precisiones exactas de cantidad y precio por activo desde Binance
                     info = self.client.futures_exchange_info()
                     for s in info['symbols']:
                         if s['symbol'] in config.ASSET_POOL:
@@ -706,7 +705,6 @@ class BotFuturosBinance:
         if not self.paper:
             config_ok = self._configurar_cuenta_binance(symbol)
             try:
-                # 1. ORDEN PRINCIPAL DE ENTRADA A MERCADO
                 order_params = {
                     'symbol': symbol,
                     'side': 'BUY' if side == 'LONG' else 'SELL',
@@ -719,10 +717,8 @@ class BotFuturosBinance:
                 self.client.futures_create_order(**order_params)
                 registrar_log(f"🚀 ORDEN ENTRADA MARKET EJECUTADA EN BINANCE: {side} {symbol} @ ${price:.4f}")
 
-                # 2. COLOCAR ÓRDENES NATIVAS DE STOP LOSS Y TAKE PROFIT DIRECTAMENTE EN BINANCE
                 side_opuesto = 'SELL' if side == 'LONG' else 'BUY'
                 
-                # Orden Nativa Stop Loss en Binance
                 sl_params = {
                     'symbol': symbol,
                     'side': side_opuesto,
@@ -736,7 +732,6 @@ class BotFuturosBinance:
                 self.client.futures_create_order(**sl_params)
                 registrar_log(f"🛡️ ORDEN NATIVA BINANCE STOP LOSS COLOCADA: ${sl_price:.4f}")
 
-                # Orden Nativa Take Profit en Binance
                 tp_params = {
                     'symbol': symbol,
                     'side': side_opuesto,
@@ -752,7 +747,6 @@ class BotFuturosBinance:
 
             except Exception as e:
                 registrar_log(f"❌ Error al colocar órdenes en Binance: {e}")
-                # Limpiar cualquier orden si la entrada falló
                 try:
                     self.client.futures_cancel_all_open_orders(symbol=symbol)
                 except Exception:
@@ -781,11 +775,9 @@ class BotFuturosBinance:
 
         if not self.paper:
             try:
-                # 1. Cancelar todas las órdenes nativas pendientes en Binance para evitar órdenes huérfanas
                 self.client.futures_cancel_all_open_orders(symbol=self.current_symbol)
                 registrar_log("🧹 Órdenes nativas pendientes canceladas en Binance.")
                 
-                # 2. Enviar orden de cierre de mercado si se cierra por señal del bot o chequeo
                 order_params = {
                     'symbol': self.current_symbol,
                     'side': 'SELL' if self.position == 'LONG' else 'BUY',
@@ -801,7 +793,6 @@ class BotFuturosBinance:
                 self.client.futures_create_order(**order_params)
                 registrar_log(f"🏁 Cierre ejecutado en Binance por {motivo}")
             except Exception as e:
-                # Si las órdenes nativas ya cerraron la posición en Binance, Binance devolverá aviso leve
                 registrar_log(f"Aviso/Ejecución de cierre Binance: {e}")
 
         valor_nocional_salida = self.position_qty * price
@@ -832,7 +823,6 @@ class BotFuturosBinance:
         registrar_log("El bot ha comenzado a escanear el mercado con Protección Nativa Binance 24/7...")
         while True:
             try:
-                # Sincronización continua de posiciones activas desde Binance
                 if not self.paper:
                     positions = self.client.futures_position_information()
                     pos_activa = False
@@ -842,7 +832,6 @@ class BotFuturosBinance:
                             pos_activa = True
                             break
                     
-                    # Si en Binance ya no hay posición activa (porque el Stop Loss o Take Profit nativo se ejecutó en el servidor):
                     if not pos_activa and self.position is not None:
                         df = self.obtener_datos(self.current_symbol)
                         precio_actual = df.iloc[-1]['close']
@@ -867,7 +856,6 @@ class BotFuturosBinance:
                     bot_status["posicion"] = f"POSICIÓN {self.position} ({self.current_symbol})"
                     bot_status["activo_actual"] = f"${precio_actual:.4f} (Entrada: ${self.entry_price:.4f})"
 
-                    # Cierre por señal contraria de la estrategia
                     if self.position == 'LONG' and short_sig:
                         self.cerrar_posicion(precio_actual, "CAMBIO A SHORT")
                     elif self.position == 'SHORT' and long_sig:

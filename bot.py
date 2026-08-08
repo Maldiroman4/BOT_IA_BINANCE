@@ -2,7 +2,7 @@ import sys
 import io
 import os
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+import urllib.request
 
 # Forzar codificación UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -34,18 +34,13 @@ def registrar_log(mensaje):
     if len(bot_status["logs"]) > 50:
         bot_status["logs"].pop()
 
-# Contador global de rotación de fondos de pantalla cósmicos
-bg_index = 0
-
 # Dashboard HTML Ultra-Pro con Fondos Espaciales Rotativos
 class DashboardWebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        global bg_index
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         
-        # 4 Fondos Espaciales / Nebulosas de Alta Definición
         bg_images = [
             "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1920&q=80",
             "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80",
@@ -53,19 +48,15 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1920&q=80"
         ]
         
-        current_bg = bg_images[bg_index % len(bg_images)]
-        bg_index += 1
-        
-        # Formateo dinámico con colores según el tipo de log
         logs_rendered = []
         for ts, msg in bot_status["logs"]:
-            color = "#00f2fe" # Azul cian por defecto
+            color = "#00f2fe"
             if "ENTRADA" in msg or "🚀" in msg:
-                color = "#0ecb81" # Verde esmeralda
+                color = "#0ecb81"
             elif "CIERRE" in msg or "🏁" in msg:
-                color = "#f0b90b" # Dorado
+                color = "#f0b90b"
             elif "STOP LOSS" in msg or "❌" in msg:
-                color = "#f6465d" # Rojo carmesí
+                color = "#f6465d"
             
             logs_rendered.append(f"""
             <div class="log-row">
@@ -117,7 +108,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 body {{
                     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
                     background-color: #05070a;
-                    background-image: url('{current_bg}');
                     background-size: cover;
                     background-position: center;
                     background-repeat: no-repeat;
@@ -129,7 +119,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     transition: background-image 1s ease-in-out;
                 }}
 
-                /* Capa de transparencia oscura del 75% sobre la imagen de fondo */
                 body::before {{
                     content: '';
                     position: fixed;
@@ -149,7 +138,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     z-index: 1;
                 }}
 
-                /* Top Navigation & Status Bar */
                 .navbar {{
                     display: flex;
                     justify-content: space-between;
@@ -229,7 +217,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     100% {{ transform: scale(0.95); opacity: 0.8; }}
                 }}
 
-                /* Grid Metrics Cards */
                 .metrics-grid {{
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -274,7 +261,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     margin-top: 6px;
                 }}
 
-                /* Asset Pool Chips */
                 .assets-bar {{
                     background: var(--panel-bg);
                     backdrop-filter: blur(20px);
@@ -314,7 +300,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     color: var(--accent-gold);
                 }}
 
-                /* Terminal Window */
                 .terminal-card {{
                     background: rgba(10, 13, 20, 0.92);
                     backdrop-filter: blur(20px);
@@ -387,7 +372,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     word-break: break-word;
                 }}
 
-                /* Scrollbar Customization */
                 ::-webkit-scrollbar {{
                     width: 6px;
                 }}
@@ -400,7 +384,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 }}
             </style>
             <script>
-                // Rotación dinámica de fondo de pantalla cada 5 segundos
                 const bgImages = [
                     "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1920&q=80",
                     "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80",
@@ -408,22 +391,23 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1920&q=80"
                 ];
                 let currentIdx = Math.floor(Math.random() * bgImages.length);
-                
-                setInterval(() => {{
-                    currentIdx = (currentIdx + 1) % bgImages.length;
+                document.addEventListener("DOMContentLoaded", () => {{
                     document.body.style.backgroundImage = `url('${{bgImages[currentIdx]}}')`;
-                }}, 5000);
+                    setInterval(() => {{
+                        currentIdx = (currentIdx + 1) % bgImages.length;
+                        document.body.style.backgroundImage = `url('${{bgImages[currentIdx]}}')`;
+                    }}, 5000);
+                }});
             </script>
         </head>
         <body>
             <div class="dashboard">
-                <!-- Navigation Bar -->
                 <div class="navbar">
                     <div class="brand">
                         <div class="brand-icon">🔥</div>
                         <div class="brand-text">
                             <h1>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS</h1>
-                            <p>Binance USDT-M Futures • 5x Leverage System</p>
+                            <p>Binance USDT-M Futures • Live Sync System</p>
                         </div>
                     </div>
                     <div class="status-pill">
@@ -432,12 +416,11 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
                 </div>
 
-                <!-- Metrics Grid -->
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <div class="metric-label">Account Balance</div>
                         <div class="metric-val" style="color: var(--accent-gold);">{bot_status["balance"]}</div>
-                        <div class="metric-sub">Real-Time Wallet Balance</div>
+                        <div class="metric-sub">Binance Live Wallet Sync</div>
                     </div>
 
                     <div class="metric-card">
@@ -459,7 +442,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
                 </div>
 
-                <!-- Asset Pool Selector Bar -->
                 <div class="assets-bar">
                     <div class="assets-title">📡 ACTIVE SCANNER POOL (TOP LIQUIDITY PAIRS)</div>
                     <div class="asset-chips">
@@ -470,7 +452,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
                 </div>
 
-                <!-- Live Terminal Feed -->
                 <div class="terminal-card">
                     <div class="terminal-header">
                         <div class="terminal-title">
@@ -495,6 +476,19 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         return
 
+# Auto-Keep-Alive interno para evitar que Render duerma la aplicación
+def auto_keep_alive():
+    time.sleep(10)
+    app_url = os.getenv("RENDER_EXTERNAL_URL", "http://localhost:10000")
+    while True:
+        try:
+            req = urllib.request.Request(app_url, headers={'User-Agent': 'KeepAliveAutoPing/1.0'})
+            urllib.request.urlopen(req, timeout=10)
+            print("[KEEP-ALIVE] Auto-ping enviado correctamente.")
+        except Exception as e:
+            pass
+        time.sleep(240) # Petición cada 4 minutos
+
 def iniciar_servidor_web():
     try:
         port = int(os.getenv("PORT", 10000))
@@ -504,8 +498,9 @@ def iniciar_servidor_web():
     except Exception as e:
         print(f"Aviso servidor web: {e}")
 
-# Iniciar servidor web de monitoreo en un hilo secundario
+# Hilos secundarios de soporte
 threading.Thread(target=iniciar_servidor_web, daemon=True).start()
+threading.Thread(target=auto_keep_alive, daemon=True).start()
 
 class BotFuturosBinance:
     def __init__(self):
@@ -534,12 +529,9 @@ class BotFuturosBinance:
                         config.BINANCE_SECRET_KEY, 
                         testnet=config.USE_TESTNET
                     )
-                    balances = self.client.futures_account_balance()
-                    usdt_balance = next((float(b['balance']) for b in balances if b['asset'] == 'USDT'), 0.0)
                     
-                    bot_status["balance"] = f"{usdt_balance:.2f} USDT"
-                    bot_status["estado"] = "Conectado y Escaneando"
-                    registrar_log(f"✅ Conexión exitosa con Binance. Balance: {usdt_balance:.2f} USDT")
+                    # 1. Sincronización Real de Saldo desde Binance
+                    self.sincronizar_saldo_binance()
                     
                     mode_info = self.client.futures_get_position_mode()
                     self.hedge_mode = mode_info.get('dualSidePosition', False)
@@ -550,6 +542,9 @@ class BotFuturosBinance:
                     for s in info['symbols']:
                         if s['symbol'] in config.ASSET_POOL:
                             self.precisions[s['symbol']] = s['quantityPrecision']
+                    
+                    # 2. Restaurar Posiciones Abiertas si el Servidor se Reinicia
+                    self.restaurar_posiciones_activas()
                     
                     conectado = True
                     
@@ -567,6 +562,44 @@ class BotFuturosBinance:
             bot_status["estado"] = "Paper Trading"
             registrar_log("Estado: MODO SIMULACIÓN (Paper Trading)")
             self.precisions = {'SOLUSDT': 2, 'XRPUSDT': 1, 'DOGEUSDT': 0, 'ADAUSDT': 0}
+
+    def sincronizar_saldo_binance(self):
+        """Consulta el saldo real disponible en Binance."""
+        if self.paper:
+            return
+        try:
+            balances = self.client.futures_account_balance()
+            usdt_bal = next((float(b['balance']) for b in balances if b['asset'] == 'USDT'), 0.0)
+            self.margin = min(usdt_bal, 10.0) # Usa el saldo real disponible (mínimo de prueba)
+            if self.margin <= 0:
+                self.margin = config.MARGIN_USD
+            bot_status["balance"] = f"{usdt_bal:.2f} USDT"
+            registrar_log(f"✅ Sincronización Binance: Saldo Billetera Real = {usdt_bal:.2f} USDT")
+        except Exception as e:
+            registrar_log(f"Error sincronizando saldo: {e}")
+
+    def restaurar_posiciones_activas(self):
+        """Recupera cualquier posición abierta en Binance en caso de reinicio del servidor."""
+        if self.paper:
+            return
+        try:
+            positions = self.client.futures_position_information()
+            for p in positions:
+                amt = float(p['positionAmt'])
+                if p['symbol'] in config.ASSET_POOL and amt != 0:
+                    self.current_symbol = p['symbol']
+                    self.position_qty = abs(amt)
+                    self.entry_price = float(p['entryPrice'])
+                    self.position = 'LONG' if amt > 0 else 'SHORT'
+                    
+                    bot_status["activo_actual"] = self.current_symbol
+                    bot_status["posicion"] = f"POSICIÓN {self.position} @ ${self.entry_price:.4f}"
+                    bot_status["precio_entrada"] = f"{self.entry_price:.4f}"
+                    registrar_log(f"🔄 POSICIÓN RECUPERADA EN REINICIO: {self.position} {self.current_symbol} @ ${self.entry_price:.4f}")
+                    return
+            registrar_log("Sin posiciones previas abiertas en Binance.")
+        except Exception as e:
+            registrar_log(f"Error al verificar posiciones en Binance: {e}")
 
     def ajustar_precision_cantidad(self, symbol, qty):
         precision = self.precisions.get(symbol, 2)
@@ -714,11 +747,11 @@ class BotFuturosBinance:
         ganancia_neta = ganancia_bruta - comision_salida
         self.margin += (self.entry_price * self.position_qty / self.leverage) + ganancia_neta
 
-        bot_status["balance"] = f"{self.margin:.2f} USDT"
+        self.sincronizar_saldo_binance()
         bot_status["posicion"] = "SIN POSICIÓN (Escaneando)"
         bot_status["activo_actual"] = "Ninguno"
 
-        registrar_log(f"CIERRE ({motivo}): {self.current_symbol} | Precio Cierre: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Nuevo Saldo: ${self.margin:.2f} USDT")
+        registrar_log(f"CIERRE ({motivo}): {self.current_symbol} | Precio Cierre: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Nuevo Saldo: {bot_status['balance']}")
 
         self.position = None
         self.current_symbol = None

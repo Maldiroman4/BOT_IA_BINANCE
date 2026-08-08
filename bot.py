@@ -34,12 +34,27 @@ def registrar_log(mensaje):
     if len(bot_status["logs"]) > 50:
         bot_status["logs"].pop()
 
-# Dashboard HTML Ultra-Pro con diseño Glassmorphism y Tipografía de TradingView
+# Contador global de rotación de fondos de pantalla cósmicos
+bg_index = 0
+
+# Dashboard HTML Ultra-Pro con Fondos Espaciales Rotativos
 class DashboardWebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        global bg_index
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
+        
+        # 4 Fondos Espaciales / Nebulosas de Alta Definición
+        bg_images = [
+            "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1920&q=80",
+            "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80",
+            "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1920&q=80",
+            "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1920&q=80"
+        ]
+        
+        current_bg = bg_images[bg_index % len(bg_images)]
+        bg_index += 1
         
         # Formateo dinámico con colores según el tipo de log
         logs_rendered = []
@@ -61,7 +76,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         
         logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando sistema de escaneo...</span></div>"
         
-        # Determinar estilo del badge de posición
         pos_str = bot_status["posicion"]
         pos_badge_color = "#848e9c"
         if "LONG" in pos_str:
@@ -84,15 +98,14 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
             <style>
                 :root {{
-                    --bg-gradient: radial-gradient(circle at 50% 0%, #1a1e29 0%, #0b0e14 100%);
-                    --panel-bg: rgba(22, 26, 37, 0.75);
-                    --panel-border: rgba(255, 255, 255, 0.08);
+                    --panel-bg: rgba(15, 18, 26, 0.78);
+                    --panel-border: rgba(255, 255, 255, 0.12);
                     --accent-gold: #f0b90b;
                     --accent-green: #0ecb81;
                     --accent-red: #f6465d;
                     --accent-cyan: #00f2fe;
-                    --text-main: #eaecef;
-                    --text-muted: #848e9c;
+                    --text-main: #ffffff;
+                    --text-muted: #a0aec0;
                 }}
                 
                 * {{
@@ -103,15 +116,37 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 
                 body {{
                     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                    background: var(--bg-gradient);
+                    background-color: #05070a;
+                    background-image: url('{current_bg}');
+                    background-size: cover;
+                    background-position: center;
+                    background-repeat: no-repeat;
+                    background-attachment: fixed;
                     color: var(--text-main);
                     min-height: 100vh;
                     padding: 24px 16px;
+                    position: relative;
+                    transition: background-image 1s ease-in-out;
+                }}
+
+                /* Capa de transparencia oscura del 75% sobre la imagen de fondo */
+                body::before {{
+                    content: '';
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(5, 7, 12, 0.75);
+                    z-index: 0;
+                    pointer-events: none;
                 }}
 
                 .dashboard {{
                     max-width: 1100px;
                     margin: 0 auto;
+                    position: relative;
+                    z-index: 1;
                 }}
 
                 /* Top Navigation & Status Bar */
@@ -120,37 +155,37 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     justify-content: space-between;
                     align-items: center;
                     background: var(--panel-bg);
-                    backdrop-filter: blur(16px);
-                    -webkit-backdrop-filter: blur(16px);
+                    backdrop-filter: blur(20px);
+                    -webkit-backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border);
-                    border-radius: 14px;
-                    padding: 16px 24px;
+                    border-radius: 16px;
+                    padding: 18px 24px;
                     margin-bottom: 24px;
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
                 }}
 
                 .brand {{
                     display: flex;
                     align-items: center;
-                    gap: 12px;
+                    gap: 14px;
                 }}
 
                 .brand-icon {{
-                    width: 42px;
-                    height: 42px;
+                    width: 44px;
+                    height: 44px;
                     background: linear-gradient(135deg, #f0b90b 0%, #ff8c00 100%);
-                    border-radius: 10px;
+                    border-radius: 12px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     font-weight: 800;
                     color: #000;
-                    font-size: 22px;
-                    box-shadow: 0 0 15px rgba(240, 185, 11, 0.3);
+                    font-size: 24px;
+                    box-shadow: 0 0 20px rgba(240, 185, 11, 0.4);
                 }}
 
                 .brand-text h1 {{
-                    font-size: 19px;
+                    font-size: 20px;
                     font-weight: 800;
                     letter-spacing: -0.5px;
                     background: linear-gradient(90deg, #ffffff 0%, #f0b90b 100%);
@@ -170,21 +205,21 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     display: flex;
                     align-items: center;
                     gap: 8px;
-                    background: rgba(14, 203, 129, 0.1);
-                    border: 1px solid rgba(14, 203, 129, 0.3);
+                    background: rgba(14, 203, 129, 0.15);
+                    border: 1px solid rgba(14, 203, 129, 0.4);
                     color: var(--accent-green);
-                    padding: 6px 14px;
+                    padding: 8px 16px;
                     border-radius: 20px;
                     font-size: 12px;
-                    font-weight: 600;
+                    font-weight: 700;
                 }}
 
                 .pulse-dot {{
-                    width: 8px;
-                    height: 8px;
+                    width: 9px;
+                    height: 9px;
                     background-color: var(--accent-green);
                     border-radius: 50%;
-                    box-shadow: 0 0 8px var(--accent-green);
+                    box-shadow: 0 0 10px var(--accent-green);
                     animation: pulse 1.8s infinite ease-in-out;
                 }}
 
@@ -204,17 +239,18 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 .metric-card {{
                     background: var(--panel-bg);
-                    backdrop-filter: blur(12px);
-                    -webkit-backdrop-filter: blur(12px);
+                    backdrop-filter: blur(20px);
+                    -webkit-backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border);
-                    border-radius: 14px;
-                    padding: 20px;
-                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                    border-radius: 16px;
+                    padding: 22px;
+                    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+                    transition: transform 0.25s ease, box-shadow 0.25s ease;
                 }}
 
                 .metric-card:hover {{
-                    transform: translateY(-2px);
-                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+                    transform: translateY(-3px);
+                    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.6);
                 }}
 
                 .metric-label {{
@@ -227,7 +263,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 }}
 
                 .metric-val {{
-                    font-size: 24px;
+                    font-size: 26px;
                     font-weight: 800;
                     letter-spacing: -0.5px;
                 }}
@@ -235,58 +271,64 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 .metric-sub {{
                     font-size: 11px;
                     color: var(--text-muted);
-                    margin-top: 4px;
+                    margin-top: 6px;
                 }}
 
                 /* Asset Pool Chips */
                 .assets-bar {{
                     background: var(--panel-bg);
+                    backdrop-filter: blur(20px);
+                    -webkit-backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border);
-                    border-radius: 14px;
-                    padding: 16px 20px;
+                    border-radius: 16px;
+                    padding: 16px 22px;
                     margin-bottom: 24px;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
                     flex-wrap: wrap;
                     gap: 12px;
+                    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
                 }}
 
                 .assets-title {{
                     font-size: 13px;
-                    font-weight: 600;
+                    font-weight: 700;
                     color: var(--text-muted);
+                    letter-spacing: 0.5px;
                 }}
 
                 .asset-chips {{
                     display: flex;
-                    gap: 8px;
+                    gap: 10px;
                 }}
 
                 .chip {{
-                    background: rgba(255, 255, 255, 0.04);
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    padding: 5px 12px;
-                    border-radius: 8px;
+                    background: rgba(240, 185, 11, 0.12);
+                    border: 1px solid rgba(240, 185, 11, 0.3);
+                    padding: 6px 14px;
+                    border-radius: 10px;
                     font-size: 12px;
-                    font-weight: 700;
+                    font-weight: 800;
                     letter-spacing: 0.5px;
                     color: var(--accent-gold);
                 }}
 
                 /* Terminal Window */
                 .terminal-card {{
-                    background: #0d1117;
+                    background: rgba(10, 13, 20, 0.92);
+                    backdrop-filter: blur(20px);
+                    -webkit-backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border);
-                    border-radius: 14px;
+                    border-radius: 16px;
                     overflow: hidden;
-                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+                    box-shadow: 0 16px 50px rgba(0, 0, 0, 0.7);
                 }}
 
                 .terminal-header {{
-                    background: #161b22;
-                    padding: 14px 20px;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                    background: rgba(22, 27, 38, 0.9);
+                    padding: 16px 22px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
@@ -309,8 +351,8 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 }}
 
                 .dot {{
-                    width: 10px;
-                    height: 10px;
+                    width: 11px;
+                    height: 11px;
                     border-radius: 50%;
                 }}
 
@@ -320,22 +362,22 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 .terminal-body {{
                     font-family: 'JetBrains Mono', monospace;
-                    font-size: 12.5px;
-                    padding: 18px;
-                    height: 380px;
+                    font-size: 13px;
+                    padding: 20px;
+                    height: 390px;
                     overflow-y: auto;
-                    line-height: 1.6;
+                    line-height: 1.65;
                 }}
 
                 .log-row {{
                     display: flex;
-                    gap: 12px;
-                    padding: 4px 0;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+                    gap: 14px;
+                    padding: 5px 0;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
                 }}
 
                 .log-time {{
-                    color: #484f58;
+                    color: #6e7681;
                     font-weight: 600;
                     user-select: none;
                 }}
@@ -350,13 +392,28 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     width: 6px;
                 }}
                 ::-webkit-scrollbar-track {{
-                    background: #0d1117;
+                    background: rgba(0, 0, 0, 0.2);
                 }}
                 ::-webkit-scrollbar-thumb {{
-                    background: #21262d;
+                    background: rgba(255, 255, 255, 0.15);
                     border-radius: 4px;
                 }}
             </style>
+            <script>
+                // Rotación dinámica de fondo de pantalla cada 5 segundos
+                const bgImages = [
+                    "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1920&q=80",
+                    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80",
+                    "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1920&q=80",
+                    "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1920&q=80"
+                ];
+                let currentIdx = Math.floor(Math.random() * bgImages.length);
+                
+                setInterval(() => {{
+                    currentIdx = (currentIdx + 1) % bgImages.length;
+                    document.body.style.backgroundImage = `url('${{bgImages[currentIdx]}}')`;
+                }}, 5000);
+            </script>
         </head>
         <body>
             <div class="dashboard">
@@ -385,7 +442,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                     <div class="metric-card">
                         <div class="metric-label">Engine Position Status</div>
-                        <div class="metric-val" style="color: {pos_badge_color}; font-size: 18px; margin-top: 4px;">{bot_status["posicion"]}</div>
+                        <div class="metric-val" style="color: {pos_badge_color}; font-size: 19px; margin-top: 4px;">{bot_status["posicion"]}</div>
                         <div class="metric-sub">Strategy: EMA 9/21 + RSI 14</div>
                     </div>
 
@@ -397,7 +454,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                     <div class="metric-card">
                         <div class="metric-label">Risk Management</div>
-                        <div class="metric-val" style="color: #ffffff; font-size: 18px;">SL -1.2% | TP +2.5%</div>
+                        <div class="metric-val" style="color: #ffffff; font-size: 19px;">SL -1.2% | TP +2.5%</div>
                         <div class="metric-sub">Margin: Isolated 5x • VIP 0 Fees Included</div>
                     </div>
                 </div>

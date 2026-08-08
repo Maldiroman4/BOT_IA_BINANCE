@@ -4,7 +4,7 @@ import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-# Forzar codificación UTF-8 en la consola de Windows
+# Forzar codificación UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
 
 import time
@@ -15,21 +15,37 @@ from binance.exceptions import BinanceAPIException
 import ta
 import config
 
-# Servidor HTTP ligero para permitir el plan 100% GRATUITO (Free Tier) en Render.com
+# Servidor HTTP de Salud para Render.com (Plan 100% Gratuito)
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write(b"Bot de Binance Futuros Activo y Monitoreando")
+        respuesta = """
+        <html>
+            <head><title>Bot Binance Futuros</title></head>
+            <body style="font-family: Arial; background-color: #121212; color: #00ffcc; text-align: center; padding-top: 50px;">
+                <h1>🤖 Bot de Trading Binance Futuros Activo</h1>
+                <p style="color: #ffffff; font-size: 18px;">El bot se encuentra ejecutándose en segundo plano 24/7 en Render.</p>
+            </body>
+        </html>
+        """
+        self.wfile.write(respuesta.encode('utf-8'))
 
     def log_message(self, format, *args):
-        return # Silenciar logs HTTP repetitivos
+        return # Silenciar peticiones HTTP en consola
 
 def iniciar_servidor_web():
-    port = int(os.getenv("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-    server.serve_forever()
+    try:
+        port = int(os.getenv("PORT", 10000))
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        print(f"🌐 Servidor Web de salud escuchando en puerto {port}")
+        server.serve_forever()
+    except Exception as e:
+        print(f"Aviso servidor web: {e}")
+
+# Iniciar servidor de salud antes de cualquier llamada a la API
+threading.Thread(target=iniciar_servidor_web, daemon=True).start()
 
 class BotFuturosBinance:
     def __init__(self):
@@ -37,9 +53,6 @@ class BotFuturosBinance:
         print("    BOT DE TRADING BINANCE FUTUROS - 2 USD       ")
         print("    (INCLUYE COMISIONES DE CUENTA BÁSICA VIP 0)  ")
         print("==================================================")
-        
-        # Iniciar el servidor web de salud en un hilo secundario para activar el Plan GRATUITO de Render
-        threading.Thread(target=iniciar_servidor_web, daemon=True).start()
         
         self.paper = config.PAPER_TRADING
         self.margin = config.MARGIN_USD
@@ -49,43 +62,47 @@ class BotFuturosBinance:
         self.entry_price = 0.0
         self.position_qty = 0.0
         self.precisions = {}
-        self.hedge_mode = False     # Modo cobertura (Hedge Mode) o Modo Unilateral
-        
-        # Tarifa Taker Estándar de Binance Futuros para Cuentas Básicas (VIP 0): 0.05%
+        self.hedge_mode = False
         self.fee_rate = 0.0005 
 
         if not self.paper:
             servidor = "TESTNET (Pruebas)" if config.USE_TESTNET else "CUENTA REAL DE BINANCE"
             print(f"Conectando a {servidor} con tus API Keys...")
-            try:
-                self.client = Client(
-                    config.BINANCE_API_KEY, 
-                    config.BINANCE_SECRET_KEY, 
-                    testnet=config.USE_TESTNET
-                )
-                balances = self.client.futures_account_balance()
-                usdt_balance = next((float(b['balance']) for b in balances if b['asset'] == 'USDT'), 0.0)
-                
-                print(f"✅ CONEXIÓN EXITOSA CON BINANCE FUTUROS ({servidor})")
-                print(f"💰 Balance disponible en Binance: {usdt_balance:.2f} USDT")
-                
-                # Detectar el modo de posición de la cuenta del usuario (Hedge Mode vs One-Way Mode)
-                mode_info = self.client.futures_get_position_mode()
-                self.hedge_mode = mode_info.get('dualSidePosition', False)
-                print(f"⚙️ Modo de Posición detectado: {'Modo Cobertura (Hedge Mode)' if self.hedge_mode else 'Modo Unilateral (One-Way)'}")
-                
-                # Obtener la precisión exacta de decimales para cada activo del pool
-                info = self.client.futures_exchange_info()
-                for s in info['symbols']:
-                    if s['symbol'] in config.ASSET_POOL:
-                        self.precisions[s['symbol']] = s['quantityPrecision']
-                
-            except BinanceAPIException as e:
-                print(f"\n❌ ERROR DE CONEXIÓN BINANCE (Código {e.code}): {e.message}")
-                exit(1)
-            except Exception as e:
-                print(f"❌ Error de conexión: {e}")
-                exit(1)
+            
+            conectado = False
+            while not conectado:
+                try:
+                    self.client = Client(
+                        config.BINANCE_API_KEY, 
+                        config.BINANCE_SECRET_KEY, 
+                        testnet=config.USE_TESTNET
+                    )
+                    balances = self.client.futures_account_balance()
+                    usdt_balance = next((float(b['balance']) for b in balances if b['asset'] == 'USDT'), 0.0)
+                    
+                    print(f"✅ CONEXIÓN EXITOSA CON BINANCE FUTUROS ({servidor})")
+                    print(f"💰 Balance disponible en Binance: {usdt_balance:.2f} USDT")
+                    
+                    mode_info = self.client.futures_get_position_mode()
+                    self.hedge_mode = mode_info.get('dualSidePosition', False)
+                    print(f"⚙️ Modo de Posición detectado: {'Modo Cobertura (Hedge Mode)' if self.hedge_mode else 'Modo Unilateral (One-Way)'}")
+                    
+                    info = self.client.futures_exchange_info()
+                    for s in info['symbols']:
+                        if s['symbol'] in config.ASSET_POOL:
+                            self.precisions[s['symbol']] = s['quantityPrecision']
+                    
+                    conectado = True
+                    
+                except BinanceAPIException as e:
+                    print(f"\n❌ ERROR DE CONEXIÓN BINANCE (Código {e.code}): {e.message}")
+                    if "restricted location" in str(e.message).lower():
+                        print("👉 RECUERDA: En Render debes seleccionar la región 'Frankfurt (Germany)' o 'Singapore' para evitar restricciones de IP de EE.UU.")
+                    print("Reintentando conexión en 30 segundos...")
+                    time.sleep(30)
+                except Exception as e:
+                    print(f"❌ Error de conexión: {e}. Reintentando en 30s...")
+                    time.sleep(30)
         else:
             self.client = Client()
             print(f"Estado: MODO SIMULACIÓN (PAPER TRADING)")
@@ -94,7 +111,6 @@ class BotFuturosBinance:
             self.precisions = {'SOLUSDT': 2, 'XRPUSDT': 1, 'DOGEUSDT': 0, 'ADAUSDT': 0}
 
     def ajustar_precision_cantidad(self, symbol, qty):
-        """Ajusta la cantidad según los decimales exactos permitidos por Binance."""
         precision = self.precisions.get(symbol, 2)
         if precision == 0:
             return math.floor(qty)

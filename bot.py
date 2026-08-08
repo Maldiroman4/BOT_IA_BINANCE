@@ -1,5 +1,9 @@
 import sys
 import io
+import os
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
 # Forzar codificación UTF-8 en la consola de Windows
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -11,12 +15,31 @@ from binance.exceptions import BinanceAPIException
 import ta
 import config
 
+# Servidor HTTP ligero para permitir el plan 100% GRATUITO (Free Tier) en Render.com
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(b"Bot de Binance Futuros Activo y Monitoreando")
+
+    def log_message(self, format, *args):
+        return # Silenciar logs HTTP repetitivos
+
+def iniciar_servidor_web():
+    port = int(os.getenv("PORT", 10000))
+    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    server.serve_forever()
+
 class BotFuturosBinance:
     def __init__(self):
         print("\n==================================================")
         print("    BOT DE TRADING BINANCE FUTUROS - 2 USD       ")
         print("    (INCLUYE COMISIONES DE CUENTA BÁSICA VIP 0)  ")
         print("==================================================")
+        
+        # Iniciar el servidor web de salud en un hilo secundario para activar el Plan GRATUITO de Render
+        threading.Thread(target=iniciar_servidor_web, daemon=True).start()
         
         self.paper = config.PAPER_TRADING
         self.margin = config.MARGIN_USD
@@ -153,7 +176,6 @@ class BotFuturosBinance:
         if not self.paper:
             config_ok = self._configurar_cuenta_binance(symbol)
             try:
-                # Construir los parámetros compatibles según el modo de posición de la cuenta
                 order_params = {
                     'symbol': symbol,
                     'side': 'BUY' if side == 'LONG' else 'SELL',
@@ -162,7 +184,7 @@ class BotFuturosBinance:
                 }
                 
                 if self.hedge_mode:
-                    order_params['positionSide'] = side # 'LONG' o 'SHORT'
+                    order_params['positionSide'] = side
 
                 self.client.futures_create_order(**order_params)
                 print("✅ ORDEN ENVIADA Y EJECUTADA EXITOSAMENTE EN BINANCE FUTUROS")

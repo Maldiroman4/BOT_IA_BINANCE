@@ -22,6 +22,8 @@ bot_status = {
     "activo_actual": "Ninguno",
     "posicion": "SIN POSICIÓN (Escaneando)",
     "precio_entrada": "0.0000",
+    "stop_loss": "N/A",
+    "take_profit": "N/A",
     "servidor": "Render Cloud EU",
     "logs": []
 }
@@ -51,7 +53,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         logs_rendered = []
         for ts, msg in bot_status["logs"]:
             color = "#00f2fe"
-            if "ENTRADA" in msg or "🚀" in msg:
+            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg:
                 color = "#0ecb81"
             elif "CIERRE" in msg or "🏁" in msg:
                 color = "#f0b90b"
@@ -407,12 +409,12 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         <div class="brand-icon">🔥</div>
                         <div class="brand-text">
                             <h1>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS</h1>
-                            <p>Binance USDT-M Futures • Live Sync System</p>
+                            <p>Binance USDT-M Futures • Exchange-Side Native Protection</p>
                         </div>
                     </div>
                     <div class="status-pill">
                         <div class="pulse-dot"></div>
-                        <span>SYSTEM ONLINE (24/7 CLOUD)</span>
+                        <span>BINANCE NATIVE PROTECTED 24/7</span>
                     </div>
                 </div>
 
@@ -436,9 +438,9 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
 
                     <div class="metric-card">
-                        <div class="metric-label">Risk Management</div>
-                        <div class="metric-val" style="color: #ffffff; font-size: 19px;">SL -1.2% | TP +2.5%</div>
-                        <div class="metric-sub">Margin: Isolated 5x • VIP 0 Fees Included</div>
+                        <div class="metric-label">Binance Native Orders</div>
+                        <div class="metric-val" style="color: #ffffff; font-size: 17px; margin-top: 4px;">SL: {bot_status["stop_loss"]} | TP: {bot_status["take_profit"]}</div>
+                        <div class="metric-sub">Exchange-Side STOP/TP • 5x Isolated</div>
                     </div>
                 </div>
 
@@ -487,7 +489,7 @@ def auto_keep_alive():
             print("[KEEP-ALIVE] Auto-ping enviado correctamente.")
         except Exception as e:
             pass
-        time.sleep(240) # Petición cada 4 minutos
+        time.sleep(240)
 
 def iniciar_servidor_web():
     try:
@@ -498,7 +500,6 @@ def iniciar_servidor_web():
     except Exception as e:
         print(f"Aviso servidor web: {e}")
 
-# Hilos secundarios de soporte
 threading.Thread(target=iniciar_servidor_web, daemon=True).start()
 threading.Thread(target=auto_keep_alive, daemon=True).start()
 
@@ -513,7 +514,8 @@ class BotFuturosBinance:
         self.position = None        # None, 'LONG' o 'SHORT'
         self.entry_price = 0.0
         self.position_qty = 0.0
-        self.precisions = {}
+        self.qty_precisions = {}
+        self.price_precisions = {}
         self.hedge_mode = False
         self.fee_rate = 0.0005 
 
@@ -530,7 +532,6 @@ class BotFuturosBinance:
                         testnet=config.USE_TESTNET
                     )
                     
-                    # 1. Sincronización Real de Saldo desde Binance
                     self.sincronizar_saldo_binance()
                     
                     mode_info = self.client.futures_get_position_mode()
@@ -538,14 +539,14 @@ class BotFuturosBinance:
                     modo_str = "Hedge Mode" if self.hedge_mode else "One-Way Mode"
                     registrar_log(f"Modo de Posición: {modo_str}")
                     
+                    # Cargar precisiones exactas de cantidad y precio por activo desde Binance
                     info = self.client.futures_exchange_info()
                     for s in info['symbols']:
                         if s['symbol'] in config.ASSET_POOL:
-                            self.precisions[s['symbol']] = s['quantityPrecision']
+                            self.qty_precisions[s['symbol']] = s['quantityPrecision']
+                            self.price_precisions[s['symbol']] = s['pricePrecision']
                     
-                    # 2. Restaurar Posiciones Abiertas si el Servidor se Reinicia
                     self.restaurar_posiciones_activas()
-                    
                     conectado = True
                     
                 except BinanceAPIException as e:
@@ -561,25 +562,24 @@ class BotFuturosBinance:
             bot_status["balance"] = f"{self.margin:.2f} USDT (Virtual)"
             bot_status["estado"] = "Paper Trading"
             registrar_log("Estado: MODO SIMULACIÓN (Paper Trading)")
-            self.precisions = {'SOLUSDT': 2, 'XRPUSDT': 1, 'DOGEUSDT': 0, 'ADAUSDT': 0}
+            self.qty_precisions = {'SOLUSDT': 2, 'XRPUSDT': 1, 'DOGEUSDT': 0, 'ADAUSDT': 0}
+            self.price_precisions = {'SOLUSDT': 2, 'XRPUSDT': 4, 'DOGEUSDT': 5, 'ADAUSDT': 4}
 
     def sincronizar_saldo_binance(self):
-        """Consulta el saldo real disponible en Binance."""
         if self.paper:
             return
         try:
             balances = self.client.futures_account_balance()
             usdt_bal = next((float(b['balance']) for b in balances if b['asset'] == 'USDT'), 0.0)
-            self.margin = min(usdt_bal, 10.0) # Usa el saldo real disponible (mínimo de prueba)
+            self.margin = min(usdt_bal, 10.0)
             if self.margin <= 0:
                 self.margin = config.MARGIN_USD
             bot_status["balance"] = f"{usdt_bal:.2f} USDT"
-            registrar_log(f"✅ Sincronización Binance: Saldo Billetera Real = {usdt_bal:.2f} USDT")
+            registrar_log(f"✅ Sincronización Binance: Saldo Real Billetera = {usdt_bal:.2f} USDT")
         except Exception as e:
             registrar_log(f"Error sincronizando saldo: {e}")
 
     def restaurar_posiciones_activas(self):
-        """Recupera cualquier posición abierta en Binance en caso de reinicio del servidor."""
         if self.paper:
             return
         try:
@@ -592,21 +592,42 @@ class BotFuturosBinance:
                     self.entry_price = float(p['entryPrice'])
                     self.position = 'LONG' if amt > 0 else 'SHORT'
                     
+                    sl_price, tp_price = self.calcular_precios_sl_tp(self.current_symbol, self.position, self.entry_price)
                     bot_status["activo_actual"] = self.current_symbol
                     bot_status["posicion"] = f"POSICIÓN {self.position} @ ${self.entry_price:.4f}"
                     bot_status["precio_entrada"] = f"{self.entry_price:.4f}"
+                    bot_status["stop_loss"] = f"${sl_price:.4f}"
+                    bot_status["take_profit"] = f"${tp_price:.4f}"
                     registrar_log(f"🔄 POSICIÓN RECUPERADA EN REINICIO: {self.position} {self.current_symbol} @ ${self.entry_price:.4f}")
                     return
+            bot_status["stop_loss"] = "N/A"
+            bot_status["take_profit"] = "N/A"
             registrar_log("Sin posiciones previas abiertas en Binance.")
         except Exception as e:
             registrar_log(f"Error al verificar posiciones en Binance: {e}")
 
     def ajustar_precision_cantidad(self, symbol, qty):
-        precision = self.precisions.get(symbol, 2)
+        precision = self.qty_precisions.get(symbol, 2)
         if precision == 0:
             return math.floor(qty)
         factor = 10 ** precision
         return math.floor(qty * factor) / factor
+
+    def ajustar_precision_precio(self, symbol, price):
+        precision = self.price_precisions.get(symbol, 4)
+        return round(price, precision)
+
+    def calcular_precios_sl_tp(self, symbol, side, entry):
+        if side == 'LONG':
+            sl = entry * (1.0 - config.STOP_LOSS_PCT)
+            tp = entry * (1.0 + config.TAKE_PROFIT_PCT)
+        else: # SHORT
+            sl = entry * (1.0 + config.STOP_LOSS_PCT)
+            tp = entry * (1.0 - config.TAKE_PROFIT_PCT)
+        
+        sl_rounded = self.ajustar_precision_precio(symbol, sl)
+        tp_rounded = self.ajustar_precision_precio(symbol, tp)
+        return sl_rounded, tp_rounded
 
     def _configurar_cuenta_binance(self, symbol):
         if self.paper:
@@ -679,24 +700,63 @@ class BotFuturosBinance:
         if qty <= 0:
             registrar_log(f"⚠️ Cantidad calculada demasiado pequeña para {symbol}")
             return
+
+        sl_price, tp_price = self.calcular_precios_sl_tp(symbol, side, price)
         
         if not self.paper:
             config_ok = self._configurar_cuenta_binance(symbol)
             try:
+                # 1. ORDEN PRINCIPAL DE ENTRADA A MERCADO
                 order_params = {
                     'symbol': symbol,
                     'side': 'BUY' if side == 'LONG' else 'SELL',
                     'type': 'MARKET',
                     'quantity': qty
                 }
-                
                 if self.hedge_mode:
                     order_params['positionSide'] = side
 
                 self.client.futures_create_order(**order_params)
-                registrar_log(f"🚀 ¡ORDEN EJECUTADA EN BINANCE! {side} en {symbol} @ ${price:.4f}")
+                registrar_log(f"🚀 ORDEN ENTRADA MARKET EJECUTADA EN BINANCE: {side} {symbol} @ ${price:.4f}")
+
+                # 2. COLOCAR ÓRDENES NATIVAS DE STOP LOSS Y TAKE PROFIT DIRECTAMENTE EN BINANCE
+                side_opuesto = 'SELL' if side == 'LONG' else 'BUY'
+                
+                # Orden Nativa Stop Loss en Binance
+                sl_params = {
+                    'symbol': symbol,
+                    'side': side_opuesto,
+                    'type': 'STOP_MARKET',
+                    'stopPrice': sl_price,
+                    'closePosition': True
+                }
+                if self.hedge_mode:
+                    sl_params['positionSide'] = side
+
+                self.client.futures_create_order(**sl_params)
+                registrar_log(f"🛡️ ORDEN NATIVA BINANCE STOP LOSS COLOCADA: ${sl_price:.4f}")
+
+                # Orden Nativa Take Profit en Binance
+                tp_params = {
+                    'symbol': symbol,
+                    'side': side_opuesto,
+                    'type': 'TAKE_PROFIT_MARKET',
+                    'stopPrice': tp_price,
+                    'closePosition': True
+                }
+                if self.hedge_mode:
+                    tp_params['positionSide'] = side
+
+                self.client.futures_create_order(**tp_params)
+                registrar_log(f"🎯 ORDEN NATIVA BINANCE TAKE PROFIT COLOCADA: ${tp_price:.4f}")
+
             except Exception as e:
-                registrar_log(f"❌ Error orden Binance: {e}")
+                registrar_log(f"❌ Error al colocar órdenes en Binance: {e}")
+                # Limpiar cualquier orden si la entrada falló
+                try:
+                    self.client.futures_cancel_all_open_orders(symbol=symbol)
+                except Exception:
+                    pass
                 return
 
         self.current_symbol = symbol
@@ -710,8 +770,10 @@ class BotFuturosBinance:
         bot_status["activo_actual"] = symbol
         bot_status["posicion"] = f"POSICIÓN {side} @ ${price:.4f}"
         bot_status["precio_entrada"] = f"{price:.4f}"
+        bot_status["stop_loss"] = f"${sl_price:.4f}"
+        bot_status["take_profit"] = f"${tp_price:.4f}"
 
-        registrar_log(f"ENTRADA: {side} {symbol} | Cantidad: {qty} | Valor Nocional: ${valor_nocional:.2f} USDT | Comisión VIP0: -${comision_entrada:.4f} USDT")
+        registrar_log(f"POSICIÓN {side} ACTIVA: {symbol} | Qty: {qty} | SL Nativo: ${sl_price:.4f} | TP Nativo: ${tp_price:.4f}")
 
     def cerrar_posicion(self, price, motivo="SEÑAL"):
         if not self.position:
@@ -719,6 +781,11 @@ class BotFuturosBinance:
 
         if not self.paper:
             try:
+                # 1. Cancelar todas las órdenes nativas pendientes en Binance para evitar órdenes huérfanas
+                self.client.futures_cancel_all_open_orders(symbol=self.current_symbol)
+                registrar_log("🧹 Órdenes nativas pendientes canceladas en Binance.")
+                
+                # 2. Enviar orden de cierre de mercado si se cierra por señal del bot o chequeo
                 order_params = {
                     'symbol': self.current_symbol,
                     'side': 'SELL' if self.position == 'LONG' else 'BUY',
@@ -732,9 +799,10 @@ class BotFuturosBinance:
                     order_params['reduceOnly'] = True
 
                 self.client.futures_create_order(**order_params)
-                registrar_log(f"🏁 Orden de Cierre ejecutada en Binance por {motivo}")
+                registrar_log(f"🏁 Cierre ejecutado en Binance por {motivo}")
             except Exception as e:
-                registrar_log(f"❌ Error al cerrar posición en Binance: {e}")
+                # Si las órdenes nativas ya cerraron la posición en Binance, Binance devolverá aviso leve
+                registrar_log(f"Aviso/Ejecución de cierre Binance: {e}")
 
         valor_nocional_salida = self.position_qty * price
         comision_salida = valor_nocional_salida * self.fee_rate
@@ -750,8 +818,10 @@ class BotFuturosBinance:
         self.sincronizar_saldo_binance()
         bot_status["posicion"] = "SIN POSICIÓN (Escaneando)"
         bot_status["activo_actual"] = "Ninguno"
+        bot_status["stop_loss"] = "N/A"
+        bot_status["take_profit"] = "N/A"
 
-        registrar_log(f"CIERRE ({motivo}): {self.current_symbol} | Precio Cierre: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Nuevo Saldo: {bot_status['balance']}")
+        registrar_log(f"CIERRE ({motivo}): {self.current_symbol} | Precio: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Saldo: {bot_status['balance']}")
 
         self.position = None
         self.current_symbol = None
@@ -759,15 +829,31 @@ class BotFuturosBinance:
         self.position_qty = 0.0
 
     def ejecutar(self):
-        registrar_log("El bot ha comenzado a escanear el mercado...")
+        registrar_log("El bot ha comenzado a escanear el mercado con Protección Nativa Binance 24/7...")
         while True:
             try:
+                # Sincronización continua de posiciones activas desde Binance
+                if not self.paper:
+                    positions = self.client.futures_position_information()
+                    pos_activa = False
+                    for p in positions:
+                        amt = float(p['positionAmt'])
+                        if p['symbol'] in config.ASSET_POOL and amt != 0:
+                            pos_activa = True
+                            break
+                    
+                    # Si en Binance ya no hay posición activa (porque el Stop Loss o Take Profit nativo se ejecutó en el servidor):
+                    if not pos_activa and self.position is not None:
+                        df = self.obtener_datos(self.current_symbol)
+                        precio_actual = df.iloc[-1]['close']
+                        registrar_log("⚡ Binance ejecutó la Orden Nativa (Stop Loss o Take Profit) en su servidor.")
+                        self.cerrar_posicion(precio_actual, "ORDEN NATIVA BINANCE EJECUTADA")
+
                 if self.position is None:
                     activo, direccion, precio = self.escanear_mercado()
                     if activo:
                         self.abrir_posicion(activo, direccion, precio)
                     else:
-                        timestamp = time.strftime('%H:%M:%S')
                         bot_status["posicion"] = "SIN POSICIÓN (Escaneando)"
                         bot_status["activo_actual"] = f"Escaneando {len(config.ASSET_POOL)} activos"
                         if len(bot_status["logs"]) == 0 or "Escaneando" not in bot_status["logs"][0][1]:
@@ -781,23 +867,11 @@ class BotFuturosBinance:
                     bot_status["posicion"] = f"POSICIÓN {self.position} ({self.current_symbol})"
                     bot_status["activo_actual"] = f"${precio_actual:.4f} (Entrada: ${self.entry_price:.4f})"
 
-                    if self.position == 'LONG':
-                        rendimiento = (precio_actual - self.entry_price) / self.entry_price
-                        if rendimiento <= -config.STOP_LOSS_PCT:
-                            self.cerrar_posicion(precio_actual, "STOP LOSS")
-                        elif rendimiento >= config.TAKE_PROFIT_PCT:
-                            self.cerrar_posicion(precio_actual, "TAKE PROFIT")
-                        elif short_sig:
-                            self.cerrar_posicion(precio_actual, "CAMBIO A SHORT")
-
-                    elif self.position == 'SHORT':
-                        rendimiento = (self.entry_price - precio_actual) / self.entry_price
-                        if rendimiento <= -config.STOP_LOSS_PCT:
-                            self.cerrar_posicion(precio_actual, "STOP LOSS")
-                        elif rendimiento >= config.TAKE_PROFIT_PCT:
-                            self.cerrar_posicion(precio_actual, "TAKE PROFIT")
-                        elif long_sig:
-                            self.cerrar_posicion(precio_actual, "CAMBIO A LONG")
+                    # Cierre por señal contraria de la estrategia
+                    if self.position == 'LONG' and short_sig:
+                        self.cerrar_posicion(precio_actual, "CAMBIO A SHORT")
+                    elif self.position == 'SHORT' and long_sig:
+                        self.cerrar_posicion(precio_actual, "CAMBIO A LONG")
 
                 time.sleep(10)
             except Exception as e:

@@ -16,13 +16,16 @@ from binance.exceptions import BinanceAPIException
 import ta
 import config
 
+BOT_VERSION = "v2.0 - Ultra-Trend 15m (Native TP/SL Target Only)"
+
 # Estado global, estadísticas y métricas avanzadas para el Dashboard Web
 bot_status = {
+    "version": "v2.0 - 15m",
     "balance": "Conectando...",
     "balance_inicial": 2.60,
-    "estado": "Inicializando...",
+    "estado": "Inicializando V2.0...",
     "activo_actual": "Ninguno",
-    "posicion": "SIN POSICIÓN (Escaneando)",
+    "posicion": "SIN POSICIÓN (Escaneando 15m)",
     "precio_entrada": "0.0000",
     "precio_actual": "0.0000",
     "direccion_flecha": "➡️",
@@ -45,7 +48,7 @@ def registrar_log(mensaje):
     if len(bot_status["logs"]) > 50:
         bot_status["logs"].pop()
 
-# Dashboard HTML Ultra-Pro con Gráficos Interactivos, Pie Chart y Flechas de Tendencia
+# Dashboard HTML Ultra-Pro V2.0 con Verificación de Versión en Pantalla
 class DashboardWebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -62,7 +65,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         logs_rendered = []
         for ts, msg in bot_status["logs"]:
             color = "#00f2fe"
-            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg:
+            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg or "V2.0" in msg:
                 color = "#0ecb81"
             elif "CIERRE" in msg or "🏁" in msg:
                 color = "#f0b90b"
@@ -76,9 +79,8 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             </div>
             """)
         
-        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando sistema de escaneo...</span></div>"
+        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando V2.0 15m...</span></div>"
         
-        # Generar Filas del Historial de Operaciones
         trades_rendered = []
         for t in bot_status["trades"]:
             badge_cls = "badge-green" if t["pnl_usd"] >= 0 else "badge-red"
@@ -94,9 +96,8 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             </tr>
             """)
         
-        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún. El bot está escaneando las mejores oportunidades.</td></tr>"
+        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún en V2.0 (15m). El bot está buscando tendencias sólidas sin cierres prematuros.</td></tr>"
 
-        # Cálculos de Métricas de Ganancia / Pérdida
         total_trades = bot_status["wins"] + bot_status["losses"]
         win_rate = (bot_status["wins"] / total_trades * 100) if total_trades > 0 else 0.0
         
@@ -113,7 +114,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             pos_badge_color = "#f0b90b"
             arrow_icon = "🔍"
 
-        # Datos para el gráfico de torta (Pie Chart)
         sol_c = bot_status["asset_counts"].get("SOLUSDT", 0)
         doge_c = bot_status["asset_counts"].get("DOGEUSDT", 0)
         xrp_c = bot_status["asset_counts"].get("XRPUSDT", 0)
@@ -126,7 +126,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta http-equiv="refresh" content="5">
-            <title>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS</title>
+            <title>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS - V2.0</title>
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -211,6 +211,13 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     letter-spacing: 0.5px; text-transform: uppercase;
                 }}
 
+                .version-tag {{
+                    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+                    color: #000; font-size: 11px; font-weight: 800;
+                    padding: 4px 10px; border-radius: 8px; margin-left: 10px;
+                    display: inline-block; letter-spacing: 0.5px;
+                }}
+
                 .status-pill {{
                     display: flex; align-items: center; gap: 8px;
                     background: rgba(14, 203, 129, 0.15);
@@ -261,25 +268,16 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 .metric-val {{ font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }}
                 .metric-sub {{ font-size: 11px; color: var(--text-muted); margin-top: 6px; }}
 
-                /* Layout de 2 Columnas para Gráficos y Métricas */
                 .two-col {{
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 20px;
-                    margin-bottom: 24px;
+                    display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;
                 }}
 
-                @media (max-width: 850px) {{
-                    .two-col {{ grid-template-columns: 1fr; }}
-                }}
+                @media (max-width: 850px) {{ .two-col {{ grid-template-columns: 1fr; }} }}
 
                 .chart-card {{
-                    background: var(--panel-bg);
-                    backdrop-filter: blur(20px);
-                    border: 1px solid var(--panel-border);
-                    border-radius: 16px;
-                    padding: 20px;
-                    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+                    background: var(--panel-bg); backdrop-filter: blur(20px);
+                    border: 1px solid var(--panel-border); border-radius: 16px;
+                    padding: 20px; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
                 }}
 
                 .chart-header {{
@@ -287,7 +285,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;
                 }}
 
-                /* Barra de Progreso Win Rate */
                 .progress-container {{
                     background: rgba(255, 255, 255, 0.08);
                     border-radius: 10px; height: 16px; overflow: hidden; margin: 12px 0;
@@ -298,14 +295,10 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     height: 100%; border-radius: 10px; transition: width 0.5s ease;
                 }}
 
-                /* Acordeón Desplegable para Historial */
                 details {{
-                    background: var(--panel-bg);
-                    backdrop-filter: blur(20px);
-                    border: 1px solid var(--panel-border);
-                    border-radius: 16px;
-                    margin-bottom: 24px; overflow: hidden;
-                    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+                    background: var(--panel-bg); backdrop-filter: blur(20px);
+                    border: 1px solid var(--panel-border); border-radius: 16px;
+                    margin-bottom: 24px; overflow: hidden; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
                 }}
 
                 summary {{
@@ -317,9 +310,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 summary:hover {{ background: rgba(255, 255, 255, 0.03); }}
 
-                table {{
-                    width: 100%; border-collapse: collapse; font-size: 12.5px;
-                }}
+                table {{ width: 100%; border-collapse: collapse; font-size: 12.5px; }}
 
                 th, td {{
                     padding: 12px 16px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -331,10 +322,8 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 .badge-red {{ background: rgba(246, 70, 93, 0.2); color: #f6465d; padding: 3px 8px; border-radius: 6px; font-weight: 700; }}
 
                 .terminal-card {{
-                    background: rgba(10, 13, 20, 0.92);
-                    backdrop-filter: blur(20px);
-                    border: 1px solid var(--panel-border);
-                    border-radius: 16px; overflow: hidden;
+                    background: rgba(10, 13, 20, 0.92); backdrop-filter: blur(20px);
+                    border: 1px solid var(--panel-border); border-radius: 16px; overflow: hidden;
                     box-shadow: 0 16px 50px rgba(0, 0, 0, 0.7);
                 }}
 
@@ -345,8 +334,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 }}
 
                 .terminal-title {{
-                    font-size: 12px; font-weight: 700; color: var(--text-muted);
-                    letter-spacing: 1px; text-transform: uppercase;
+                    font-size: 12px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase;
                 }}
 
                 .terminal-body {{
@@ -373,7 +361,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         document.body.style.backgroundImage = `url('${{bgImages[currentIdx]}}')`;
                     }}, 5000);
 
-                    // Inicializar Gráfico de Torta (Pie Chart de Activos Usados)
                     const ctx = document.getElementById('assetChart').getContext('2d');
                     new Chart(ctx, {{
                         type: 'doughnut',
@@ -386,8 +373,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                             }}]
                         }},
                         options: {{
-                            responsive: true,
-                            maintainAspectRatio: false,
+                            responsive: true, maintainAspectRatio: false,
                             plugins: {{
                                 legend: {{ position: 'bottom', labels: {{ color: '#eaecef', font: {{ family: 'Inter' }} }} }}
                             }}
@@ -402,17 +388,16 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     <div class="brand">
                         <div class="brand-icon">🔥</div>
                         <div class="brand-text">
-                            <h1>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS</h1>
-                            <p>Binance USDT-M Futures • Exchange-Side Native Protection</p>
+                            <h1>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS <span class="version-tag">V2.0 - 15M</span></h1>
+                            <p>Binance USDT-M Futures • Ultra-Trend 15m (Sin Cierres Prematuros)</p>
                         </div>
                     </div>
                     <div class="status-pill">
                         <div class="pulse-dot"></div>
-                        <span>BINANCE NATIVE PROTECTED 24/7</span>
+                        <span>V2.0 ACTIVE (15M TIMEFRAME)</span>
                     </div>
                 </div>
 
-                <!-- Métricas Principales -->
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <div class="metric-label">Account Balance</div>
@@ -423,30 +408,28 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     <div class="metric-card">
                         <div class="metric-label">Engine Position Status</div>
                         <div class="metric-val" style="color: {pos_badge_color}; font-size: 19px; margin-top: 4px;">{arrow_icon} {bot_status["posicion"]}</div>
-                        <div class="metric-sub">Strategy: EMA 9/21 + RSI 14</div>
+                        <div class="metric-sub">Strategy V2.0: 15m Trend Candles</div>
                     </div>
 
                     <div class="metric-card">
                         <div class="metric-label">Active Target Asset</div>
                         <div class="metric-val" style="color: var(--accent-cyan);">{bot_status["activo_actual"]}</div>
-                        <div class="metric-sub">Timeframe: 5m Candles</div>
+                        <div class="metric-sub">Timeframe: 15m Candles</div>
                     </div>
 
                     <div class="metric-card">
                         <div class="metric-label">Binance Native Orders</div>
                         <div class="metric-val" style="color: #ffffff; font-size: 16px; margin-top: 4px;">SL: {bot_status["stop_loss"]} | TP: {bot_status["take_profit"]}</div>
-                        <div class="metric-sub">Exchange-Side STOP/TP • 5x Isolated</div>
+                        <div class="metric-sub">Exchange-Side Target Only • 5x Isolated</div>
                     </div>
                 </div>
 
-                <!-- Segunda Sección: Rendimiento y Gráfico de Torta -->
                 <div class="two-col">
-                    <!-- Rendimiento de Ganancias/Pérdidas -->
                     <div class="chart-card">
-                        <div class="chart-header">📊 Rendimiento de Operaciones (Win Rate &amp; PnL)</div>
+                        <div class="chart-header">📊 Rendimiento V2.0 (Win Rate &amp; PnL)</div>
                         <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold;">
-                            <span>Tasa de Acierto: {win_rate:.1f}%</span>
-                            <span style="color: {'#0ecb81' if bot_status['pnl_total_usd']>=0 else '#f6465d'};">PnL Acumulado: {bot_status['pnl_total_usd']:+.4f} USDT</span>
+                            <span>Tasa de Acierto V2.0: {win_rate:.1f}%</span>
+                            <span style="color: {'#0ecb81' if bot_status['pnl_total_usd']>=0 else '#f6465d'};">PnL V2.0: {bot_status['pnl_total_usd']:+.4f} USDT</span>
                         </div>
                         <div class="progress-container">
                             <div class="progress-bar" style="width: {max(win_rate, 5)}%;"></div>
@@ -457,19 +440,17 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         </div>
                     </div>
 
-                    <!-- Gráfico de Torta de Activos Usados -->
                     <div class="chart-card">
-                        <div class="chart-header">🍕 Distribución de Criptomonedas Operadas</div>
+                        <div class="chart-header">🍕 Distribución de Criptomonedas V2.0</div>
                         <div style="height: 140px; position: relative;">
                             <canvas id="assetChart"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- Historial Desplegable de Operaciones -->
                 <details open>
                     <summary>
-                        <span>📜 HISTORIAL DE OPERACIONES REALIZADAS</span>
+                        <span>📜 HISTORIAL V2.0 DE OPERACIONES REALIZADAS (15M)</span>
                         <span style="font-size: 12px; color: var(--text-muted);">▼ Haz clic para contraer/desplegar</span>
                     </summary>
                     <div style="overflow-x: auto;">
@@ -492,11 +473,10 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
                 </details>
 
-                <!-- Consola Terminal en Vivo -->
                 <div class="terminal-card">
                     <div class="terminal-header">
                         <div class="terminal-title">
-                            <span>📟 REAL-TIME EXECUTION LOG STREAM</span>
+                            <span>📟 REAL-TIME EXECUTION LOG STREAM (VERSION 2.0 ACTIVE)</span>
                         </div>
                         <div class="terminal-dots">
                             <div class="dot dot-red"></div>
@@ -524,7 +504,7 @@ def auto_keep_alive():
         try:
             req = urllib.request.Request(app_url, headers={'User-Agent': 'KeepAliveAutoPing/1.0'})
             urllib.request.urlopen(req, timeout=10)
-            print("[KEEP-ALIVE] Auto-ping enviado correctamente.")
+            print("[KEEP-ALIVE] Auto-ping V2.0 enviado correctamente.")
         except Exception as e:
             pass
         time.sleep(240)
@@ -543,7 +523,7 @@ threading.Thread(target=auto_keep_alive, daemon=True).start()
 
 class BotFuturosBinance:
     def __init__(self):
-        registrar_log("=== Inicializando Bot de Trading Binance Futuros ===")
+        registrar_log(f"=== Inicializando Bot de Trading Binance Futuros ({BOT_VERSION}) ===")
         
         self.paper = config.PAPER_TRADING
         self.margin = config.MARGIN_USD
@@ -559,7 +539,7 @@ class BotFuturosBinance:
 
         if not self.paper:
             servidor = "TESTNET" if config.USE_TESTNET else "CUENTA REAL BINANCE"
-            registrar_log(f"Conectando a {servidor} con API Keys...")
+            registrar_log(f"Conectando a {servidor} con API Keys en MODO V2.0 (15M)...")
             
             conectado = False
             while not conectado:
@@ -597,8 +577,8 @@ class BotFuturosBinance:
                     time.sleep(30)
         else:
             bot_status["balance"] = f"{self.margin:.2f} USDT (Virtual)"
-            bot_status["estado"] = "Paper Trading"
-            registrar_log("Estado: MODO SIMULACIÓN (Paper Trading)")
+            bot_status["estado"] = "Paper Trading V2.0"
+            registrar_log("Estado: MODO SIMULACIÓN (Paper Trading V2.0)")
             self.qty_precisions = {'SOLUSDT': 2, 'XRPUSDT': 1, 'DOGEUSDT': 0, 'ADAUSDT': 0}
             self.price_precisions = {'SOLUSDT': 2, 'XRPUSDT': 4, 'DOGEUSDT': 5, 'ADAUSDT': 4}
 
@@ -612,7 +592,7 @@ class BotFuturosBinance:
             if self.margin <= 0:
                 self.margin = config.MARGIN_USD
             bot_status["balance"] = f"{usdt_bal:.2f} USDT"
-            registrar_log(f"✅ Sincronización Binance: Saldo Real Billetera = {usdt_bal:.2f} USDT")
+            registrar_log(f"✅ Sincronización Binance V2.0: Saldo Real Billetera = {usdt_bal:.2f} USDT")
         except Exception as e:
             registrar_log(f"Error sincronizando saldo: {e}")
 
@@ -635,7 +615,7 @@ class BotFuturosBinance:
                     bot_status["precio_entrada"] = f"{self.entry_price:.4f}"
                     bot_status["stop_loss"] = f"${sl_price:.4f}"
                     bot_status["take_profit"] = f"${tp_price:.4f}"
-                    registrar_log(f"🔄 POSICIÓN RECUPERADA EN REINICIO: {self.position} {self.current_symbol} @ ${self.entry_price:.4f}")
+                    registrar_log(f"🔄 POSICIÓN RECUPERADA EN REINICIO (V2.0 15M): {self.position} {self.current_symbol} @ ${self.entry_price:.4f}")
                     return
             bot_status["stop_loss"] = "N/A"
             bot_status["take_profit"] = "N/A"
@@ -697,8 +677,9 @@ class BotFuturosBinance:
         prev = df.iloc[-2]
         ema_diff = last['ema_fast'] - last['ema_slow']
 
-        long_sig = (prev['ema_fast'] <= prev['ema_slow']) and (last['ema_fast'] > last['ema_slow']) and (last['rsi'] < 65)
-        short_sig = (prev['ema_fast'] >= prev['ema_slow']) and (last['ema_fast'] < last['ema_slow']) and (last['rsi'] > 35)
+        # Filtro V2.0 de Tendencia Limpia en 15m con RSI
+        long_sig = (prev['ema_fast'] <= prev['ema_slow']) and (last['ema_fast'] > last['ema_slow']) and (last['rsi'] < 60)
+        short_sig = (prev['ema_fast'] >= prev['ema_slow']) and (last['ema_fast'] < last['ema_slow']) and (last['rsi'] > 40)
 
         return long_sig, short_sig, last['close'], last['rsi'], ema_diff
 
@@ -753,7 +734,7 @@ class BotFuturosBinance:
                     order_params['positionSide'] = side
 
                 self.client.futures_create_order(**order_params)
-                registrar_log(f"🚀 ORDEN ENTRADA MARKET EJECUTADA EN BINANCE: {side} {symbol} @ ${price:.4f}")
+                registrar_log(f"🚀 [V2.0 15M] ORDEN ENTRADA MARKET EJECUTADA: {side} {symbol} @ ${price:.4f}")
 
                 side_opuesto = 'SELL' if side == 'LONG' else 'BUY'
                 
@@ -768,7 +749,7 @@ class BotFuturosBinance:
                     sl_params['positionSide'] = side
 
                 self.client.futures_create_order(**sl_params)
-                registrar_log(f"🛡️ ORDEN NATIVA BINANCE STOP LOSS COLOCADA: ${sl_price:.4f}")
+                registrar_log(f"🛡️ [V2.0] STOP LOSS NATIVO EN BINANCE: ${sl_price:.4f} (-1.2%)")
 
                 tp_params = {
                     'symbol': symbol,
@@ -781,10 +762,10 @@ class BotFuturosBinance:
                     tp_params['positionSide'] = side
 
                 self.client.futures_create_order(**tp_params)
-                registrar_log(f"🎯 ORDEN NATIVA BINANCE TAKE PROFIT COLOCADA: ${tp_price:.4f}")
+                registrar_log(f"🎯 [V2.0] TAKE PROFIT NATIVO EN BINANCE: ${tp_price:.4f} (+2.5%)")
 
             except Exception as e:
-                registrar_log(f"❌ Error al colocar órdenes en Binance: {e}")
+                registrar_log(f"❌ Error al colocar órdenes V2.0 en Binance: {e}")
                 try:
                     self.client.futures_cancel_all_open_orders(symbol=symbol)
                 except Exception:
@@ -806,7 +787,7 @@ class BotFuturosBinance:
         bot_status["stop_loss"] = f"${sl_price:.4f}"
         bot_status["take_profit"] = f"${tp_price:.4f}"
 
-        registrar_log(f"POSICIÓN {side} ACTIVA: {symbol} | Qty: {qty} | SL Nativo: ${sl_price:.4f} | TP Nativo: ${tp_price:.4f}")
+        registrar_log(f"POSICIÓN V2.0 {side} ACTIVA: {symbol} | Qty: {qty} | SL: ${sl_price:.4f} | TP: ${tp_price:.4f}")
 
     def cerrar_posicion(self, price, motivo="SEÑAL"):
         if not self.position:
@@ -845,7 +826,6 @@ class BotFuturosBinance:
         ganancia_neta = ganancia_bruta - comision_salida
         self.margin += (self.entry_price * self.position_qty / self.leverage) + ganancia_neta
 
-        # Registrar estadísticas de la operación para el Historial y Gráficos del Dashboard
         trade_record = {
             "time": time.strftime('%Y-%m-%d %H:%M:%S'),
             "symbol": self.current_symbol,
@@ -864,12 +844,12 @@ class BotFuturosBinance:
             bot_status["losses"] += 1
 
         self.sincronizar_saldo_binance()
-        bot_status["posicion"] = "🔍 SIN POSICIÓN (Escaneando)"
+        bot_status["posicion"] = "🔍 SIN POSICIÓN (Escaneando 15m)"
         bot_status["activo_actual"] = "Ninguno"
         bot_status["stop_loss"] = "N/A"
         bot_status["take_profit"] = "N/A"
 
-        registrar_log(f"CIERRE ({motivo}): {self.current_symbol} | Precio: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Saldo: {bot_status['balance']}")
+        registrar_log(f"CIERRE V2.0 ({motivo}): {self.current_symbol} | Precio: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Saldo: {bot_status['balance']}")
 
         self.position = None
         self.current_symbol = None
@@ -877,9 +857,10 @@ class BotFuturosBinance:
         self.position_qty = 0.0
 
     def ejecutar(self):
-        registrar_log("El bot ha comenzado a escanear el mercado con Protección Nativa Binance 24/7...")
+        registrar_log(f"🚀 MODO V2.0 ACTIVADO: Escaneando tendencias limpias en 15m con protección nativa en Binance...")
         while True:
             try:
+                # Monitorear si las órdenes nativas de Binance (TP o SL) ya se ejecutaron en el servidor
                 if not self.paper:
                     positions = self.client.futures_position_information()
                     pos_activa = False
@@ -900,28 +881,22 @@ class BotFuturosBinance:
                     if activo:
                         self.abrir_posicion(activo, direccion, price=precio)
                     else:
-                        bot_status["posicion"] = "🔍 SIN POSICIÓN (Escaneando)"
-                        bot_status["activo_actual"] = f"Escaneando {len(config.ASSET_POOL)} activos"
+                        bot_status["posicion"] = "🔍 SIN POSICIÓN (Escaneando 15m)"
+                        bot_status["activo_actual"] = f"Escaneando 4 activos en 15m"
                         if len(bot_status["logs"]) == 0 or "Escaneando" not in bot_status["logs"][0][1]:
-                            registrar_log(f"Escaneando {config.ASSET_POOL}... Buscando oportunidad...")
+                            registrar_log(f"Escaneando {config.ASSET_POOL} en velas de 15m... Buscando tendencia sólida...")
 
                 else:
+                    # En V2.0, el bot DEJA QUE LA POSICIÓN CORRA LIBREMENTE HASTA TOCAR TP (+2.5%) O SL (-1.2%) NATIVOS EN BINANCE
                     df = self.obtener_datos(self.current_symbol)
                     precio_actual = df.iloc[-1]['close']
-                    long_sig, short_sig, _, _, _ = self.evaluar_senales(df)
-
                     flecha = "⬆️" if self.position == 'LONG' else "⬇️"
                     bot_status["posicion"] = f"{flecha} POSICIÓN {self.position} ({self.current_symbol})"
                     bot_status["activo_actual"] = f"${precio_actual:.4f} (Entrada: ${self.entry_price:.4f})"
 
-                    if self.position == 'LONG' and short_sig:
-                        self.cerrar_posicion(precio_actual, "CAMBIO A SHORT")
-                    elif self.position == 'SHORT' and long_sig:
-                        self.cerrar_posicion(precio_actual, "CAMBIO A LONG")
-
                 time.sleep(10)
             except Exception as e:
-                registrar_log(f"Error en bucle principal: {e}")
+                registrar_log(f"Error en bucle principal V2.0: {e}")
                 time.sleep(10)
 
 if __name__ == "__main__":

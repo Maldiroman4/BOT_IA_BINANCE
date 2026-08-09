@@ -16,7 +16,7 @@ from binance.exceptions import BinanceAPIException
 import ta
 import config
 
-BOT_VERSION = "v2.0 - Ultra-Trend 15m (Native TP/SL Target Only)"
+BOT_VERSION = "v2.0 - Ultra-Trend 15m (Interés Compuesto Puro 100%)"
 
 # Estado global, estadísticas y métricas avanzadas para el Dashboard Web
 bot_status = {
@@ -48,7 +48,7 @@ def registrar_log(mensaje):
     if len(bot_status["logs"]) > 50:
         bot_status["logs"].pop()
 
-# Dashboard HTML Ultra-Pro V2.0 100% Adaptativo y Responsive para Móviles y Laptops
+# Dashboard HTML Ultra-Pro V2.0 100% Adaptativo e Interés Compuesto
 class DashboardWebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -65,7 +65,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         logs_rendered = []
         for ts, msg in bot_status["logs"]:
             color = "#00f2fe"
-            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg or "V2.0" in msg:
+            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg or "V2.0" in msg or "COMPUESTO" in msg:
                 color = "#0ecb81"
             elif "CIERRE" in msg or "🏁" in msg:
                 color = "#f0b90b"
@@ -79,7 +79,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             </div>
             """)
         
-        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando V2.0 15m...</span></div>"
+        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando V2.0 15m Interés Compuesto...</span></div>"
         
         trades_rendered = []
         for t in bot_status["trades"]:
@@ -176,7 +176,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     z-index: 1;
                 }}
 
-                /* Header Navbar Responsive */
                 .navbar {{
                     display: flex;
                     justify-content: space-between;
@@ -246,7 +245,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     100% {{ transform: scale(0.95); opacity: 0.8; }}
                 }}
 
-                /* Grid de Tarjetas Adaptativo (2 columnas en móviles, 4 en desktop) */
                 .metrics-grid {{
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -275,7 +273,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 .metric-val {{ font-size: 22px; font-weight: 800; letter-spacing: -0.5px; word-break: break-word; }}
                 .metric-sub {{ font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.3; }}
 
-                /* Layout de 2 Columnas para Gráficos */
                 .two-col {{
                     display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;
                 }}
@@ -301,7 +298,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     height: 100%; border-radius: 10px; transition: width 0.5s ease;
                 }}
 
-                /* Acordeón e Historial Adaptativo */
                 details {{
                     background: var(--panel-bg); backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border); border-radius: 14px;
@@ -332,7 +328,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 .badge-green {{ background: rgba(14, 203, 129, 0.2); color: #0ecb81; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 10.5px; }}
                 .badge-red {{ background: rgba(246, 70, 93, 0.2); color: #f6465d; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 10.5px; }}
 
-                /* Terminal Adaptativo */
                 .terminal-card {{
                     background: rgba(10, 13, 20, 0.92); backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border); border-radius: 14px; overflow: hidden;
@@ -364,7 +359,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 .log-time {{ color: #6e7681; font-weight: 600; flex-shrink: 0; }}
                 .log-msg {{ flex: 1; word-break: break-word; }}
 
-                /* Media Queries específicas para Pantallas Móviles (< 768px y < 480px) */
                 @media (max-width: 768px) {{
                     .two-col {{ grid-template-columns: 1fr; }}
                     .metrics-grid {{ grid-template-columns: repeat(2, 1fr); }}
@@ -423,12 +417,12 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         <div class="brand-icon">🔥</div>
                         <div class="brand-text">
                             <h1>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS <span class="version-tag">V2.0 - 15M</span></h1>
-                            <p>Binance USDT-M Futures • Ultra-Trend 15m (Sin Cierres Prematuros)</p>
+                            <p>Binance USDT-M Futures • Interés Compuesto 100% Automático</p>
                         </div>
                     </div>
                     <div class="status-pill">
                         <div class="pulse-dot"></div>
-                        <span>V2.0 ACTIVE (15M TIMEFRAME)</span>
+                        <span>V2.0 COMPOUNDING ACTIVE</span>
                     </div>
                 </div>
 
@@ -510,7 +504,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 <div class="terminal-card">
                     <div class="terminal-header">
                         <div class="terminal-title">
-                            <span>📟 EXECUTION LOG STREAM (V2.0 15M)</span>
+                            <span>📟 EXECUTION LOG STREAM (V2.0 COMPOUNDING ACTIVE)</span>
                         </div>
                         <div class="terminal-dots">
                             <div class="dot dot-red"></div>
@@ -573,7 +567,7 @@ class BotFuturosBinance:
 
         if not self.paper:
             servidor = "TESTNET" if config.USE_TESTNET else "CUENTA REAL BINANCE"
-            registrar_log(f"Conectando a {servidor} con API Keys en MODO V2.0 (15M)...")
+            registrar_log(f"Conectando a {servidor} con API Keys en MODO V2.0 INTERÉS COMPUESTO...")
             
             conectado = False
             while not conectado:
@@ -617,16 +611,21 @@ class BotFuturosBinance:
             self.price_precisions = {'SOLUSDT': 2, 'XRPUSDT': 4, 'DOGEUSDT': 5, 'ADAUSDT': 4}
 
     def sincronizar_saldo_binance(self):
+        """Sincroniza el saldo real de Binance y calcula el Interés Compuesto Puro 100% de la billetera."""
         if self.paper:
             return
         try:
             balances = self.client.futures_account_balance()
             usdt_bal = next((float(b['balance']) for b in balances if b['asset'] == 'USDT'), 0.0)
-            self.margin = min(usdt_bal, 10.0)
-            if self.margin <= 0:
+            
+            # INTERÉS COMPUESTO PURO: Usa el 100% del saldo real disponible en la billetera
+            if usdt_bal > 0:
+                self.margin = usdt_bal
+            else:
                 self.margin = config.MARGIN_USD
+
             bot_status["balance"] = f"{usdt_bal:.2f} USDT"
-            registrar_log(f"✅ Sincronización Binance V2.0: Saldo Real Billetera = {usdt_bal:.2f} USDT")
+            registrar_log(f"✅ Interés Compuesto Activo: Saldo Real Billetera = {usdt_bal:.2f} USDT (Margen Entrada 100%)")
         except Exception as e:
             registrar_log(f"Error sincronizando saldo: {e}")
 
@@ -744,6 +743,9 @@ class BotFuturosBinance:
         return mejor_activo, mejor_direccion, mejor_precio
 
     def abrir_posicion(self, symbol, side, price):
+        # 1. Recalcular Saldo Actual para Interés Compuesto Puro
+        self.sincronizar_saldo_binance()
+        
         valor_nocional = self.margin * self.leverage
         qty_bruta = valor_nocional / price
         qty = self.ajustar_precision_cantidad(symbol, qty_bruta)
@@ -767,7 +769,7 @@ class BotFuturosBinance:
                     order_params['positionSide'] = side
 
                 self.client.futures_create_order(**order_params)
-                registrar_log(f"🚀 [V2.0 15M] ORDEN ENTRADA MARKET EJECUTADA: {side} {symbol} @ ${price:.4f}")
+                registrar_log(f"🚀 [INTERÉS COMPUESTO] ENTRADA MARKET {side} {symbol} @ ${price:.4f} (Nocional: ${valor_nocional:.2f} USDT)")
 
                 side_opuesto = 'SELL' if side == 'LONG' else 'BUY'
                 
@@ -882,7 +884,7 @@ class BotFuturosBinance:
         bot_status["stop_loss"] = "N/A"
         bot_status["take_profit"] = "N/A"
 
-        registrar_log(f"CIERRE V2.0 ({motivo}): {self.current_symbol} | Precio: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Saldo: {bot_status['balance']}")
+        registrar_log(f"CIERRE V2.0 ({motivo}): {self.current_symbol} | Precio: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Nuevo Saldo: {bot_status['balance']}")
 
         self.position = None
         self.current_symbol = None
@@ -890,7 +892,7 @@ class BotFuturosBinance:
         self.position_qty = 0.0
 
     def ejecutar(self):
-        registrar_log(f"🚀 MODO V2.0 ACTIVADO: Escaneando tendencias limpias en 15m con protección nativa en Binance...")
+        registrar_log(f"🚀 MODO V2.0 ACTIVADO: Escaneando tendencias limpias en 15m con Interés Compuesto Puro...")
         while True:
             try:
                 if not self.paper:

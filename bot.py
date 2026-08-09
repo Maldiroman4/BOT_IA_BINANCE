@@ -48,7 +48,7 @@ def registrar_log(mensaje):
     if len(bot_status["logs"]) > 50:
         bot_status["logs"].pop()
 
-# Dashboard HTML Ultra-Pro V2.0 con Verificación de Versión en Pantalla
+# Dashboard HTML Ultra-Pro V2.0 100% Adaptativo y Responsive para Móviles y Laptops
 class DashboardWebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -96,7 +96,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             </tr>
             """)
         
-        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún en V2.0 (15m). El bot está buscando tendencias sólidas sin cierres prematuros.</td></tr>"
+        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún en V2.0 (15m). Buscando tendencias sólidas.</td></tr>"
 
         total_trades = bot_status["wins"] + bot_status["losses"]
         win_rate = (bot_status["wins"] / total_trades * 100) if total_trades > 0 else 0.0
@@ -124,7 +124,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <meta http-equiv="refresh" content="5">
             <title>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS - V2.0</title>
             <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -133,7 +133,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
             <style>
                 :root {{
-                    --panel-bg: rgba(15, 18, 26, 0.82);
+                    --panel-bg: rgba(15, 18, 26, 0.84);
                     --panel-border: rgba(255, 255, 255, 0.12);
                     --accent-gold: #f0b90b;
                     --accent-green: #0ecb81;
@@ -154,16 +154,17 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     background-attachment: fixed;
                     color: var(--text-main);
                     min-height: 100vh;
-                    padding: 24px 16px;
+                    padding: 16px 12px;
                     position: relative;
                     transition: background-image 1s ease-in-out;
+                    -webkit-tap-highlight-color: transparent;
                 }}
 
                 body::before {{
                     content: '';
                     position: fixed;
                     top: 0; left: 0; right: 0; bottom: 0;
-                    background: rgba(5, 7, 12, 0.75);
+                    background: rgba(5, 7, 12, 0.78);
                     z-index: 0;
                     pointer-events: none;
                 }}
@@ -175,6 +176,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     z-index: 1;
                 }}
 
+                /* Header Navbar Responsive */
                 .navbar {{
                     display: flex;
                     justify-content: space-between;
@@ -184,38 +186,42 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     -webkit-backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border);
                     border-radius: 16px;
-                    padding: 18px 24px;
-                    margin-bottom: 24px;
+                    padding: 16px 20px;
+                    margin-bottom: 20px;
                     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+                    flex-wrap: wrap;
+                    gap: 12px;
                 }}
 
-                .brand {{ display: flex; align-items: center; gap: 14px; }}
+                .brand {{ display: flex; align-items: center; gap: 12px; flex: 1; min-width: 260px; }}
 
                 .brand-icon {{
-                    width: 44px; height: 44px;
+                    width: 42px; height: 42px;
                     background: linear-gradient(135deg, #f0b90b 0%, #ff8c00 100%);
                     border-radius: 12px;
                     display: flex; align-items: center; justify-content: center;
-                    font-weight: 800; color: #000; font-size: 24px;
+                    font-weight: 800; color: #000; font-size: 22px;
                     box-shadow: 0 0 20px rgba(240, 185, 11, 0.4);
+                    flex-shrink: 0;
                 }}
 
                 .brand-text h1 {{
-                    font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
+                    font-size: 18px; font-weight: 800; letter-spacing: -0.5px;
                     background: linear-gradient(90deg, #ffffff 0%, #f0b90b 100%);
                     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                    line-height: 1.25;
                 }}
 
                 .brand-text p {{
-                    font-size: 11px; color: var(--text-muted); font-weight: 600;
-                    letter-spacing: 0.5px; text-transform: uppercase;
+                    font-size: 10.5px; color: var(--text-muted); font-weight: 600;
+                    letter-spacing: 0.5px; text-transform: uppercase; margin-top: 2px;
                 }}
 
                 .version-tag {{
                     background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
-                    color: #000; font-size: 11px; font-weight: 800;
-                    padding: 4px 10px; border-radius: 8px; margin-left: 10px;
-                    display: inline-block; letter-spacing: 0.5px;
+                    color: #000; font-size: 10px; font-weight: 800;
+                    padding: 3px 8px; border-radius: 6px; margin-left: 6px;
+                    display: inline-block; letter-spacing: 0.5px; vertical-align: middle;
                 }}
 
                 .status-pill {{
@@ -223,12 +229,12 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     background: rgba(14, 203, 129, 0.15);
                     border: 1px solid rgba(14, 203, 129, 0.4);
                     color: var(--accent-green);
-                    padding: 8px 16px; border-radius: 20px;
-                    font-size: 12px; font-weight: 700;
+                    padding: 8px 14px; border-radius: 20px;
+                    font-size: 11.5px; font-weight: 700;
                 }}
 
                 .pulse-dot {{
-                    width: 9px; height: 9px;
+                    width: 8px; height: 8px;
                     background-color: var(--accent-green); border-radius: 50%;
                     box-shadow: 0 0 10px var(--accent-green);
                     animation: pulse 1.8s infinite ease-in-out;
@@ -240,54 +246,54 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     100% {{ transform: scale(0.95); opacity: 0.8; }}
                 }}
 
+                /* Grid de Tarjetas Adaptativo (2 columnas en móviles, 4 en desktop) */
                 .metrics-grid {{
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-                    gap: 16px; margin-bottom: 24px;
+                    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                    gap: 12px; margin-bottom: 20px;
                 }}
 
                 .metric-card {{
                     background: var(--panel-bg);
                     backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border);
-                    border-radius: 16px; padding: 22px;
+                    border-radius: 14px; padding: 16px;
                     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
                     transition: transform 0.25s ease, box-shadow 0.25s ease;
                 }}
 
                 .metric-card:hover {{
-                    transform: translateY(-3px);
-                    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.6);
+                    transform: translateY(-2px);
+                    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
                 }}
 
                 .metric-label {{
-                    font-size: 12px; color: var(--text-muted); font-weight: 600;
-                    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+                    font-size: 10.5px; color: var(--text-muted); font-weight: 600;
+                    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
                 }}
 
-                .metric-val {{ font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }}
-                .metric-sub {{ font-size: 11px; color: var(--text-muted); margin-top: 6px; }}
+                .metric-val {{ font-size: 22px; font-weight: 800; letter-spacing: -0.5px; word-break: break-word; }}
+                .metric-sub {{ font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.3; }}
 
+                /* Layout de 2 Columnas para Gráficos */
                 .two-col {{
-                    display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;
+                    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;
                 }}
-
-                @media (max-width: 850px) {{ .two-col {{ grid-template-columns: 1fr; }} }}
 
                 .chart-card {{
                     background: var(--panel-bg); backdrop-filter: blur(20px);
-                    border: 1px solid var(--panel-border); border-radius: 16px;
-                    padding: 20px; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+                    border: 1px solid var(--panel-border); border-radius: 14px;
+                    padding: 18px; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
                 }}
 
                 .chart-header {{
-                    font-size: 13px; font-weight: 700; color: var(--text-muted);
-                    margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;
+                    font-size: 12px; font-weight: 700; color: var(--text-muted);
+                    margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;
                 }}
 
                 .progress-container {{
                     background: rgba(255, 255, 255, 0.08);
-                    border-radius: 10px; height: 16px; overflow: hidden; margin: 12px 0;
+                    border-radius: 10px; height: 14px; overflow: hidden; margin: 10px 0;
                 }}
 
                 .progress-bar {{
@@ -295,56 +301,84 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     height: 100%; border-radius: 10px; transition: width 0.5s ease;
                 }}
 
+                /* Acordeón e Historial Adaptativo */
                 details {{
                     background: var(--panel-bg); backdrop-filter: blur(20px);
-                    border: 1px solid var(--panel-border); border-radius: 16px;
-                    margin-bottom: 24px; overflow: hidden; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+                    border: 1px solid var(--panel-border); border-radius: 14px;
+                    margin-bottom: 20px; overflow: hidden; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
                 }}
 
                 summary {{
-                    padding: 18px 24px; font-weight: 700; font-size: 14px;
+                    padding: 16px 20px; font-weight: 700; font-size: 13px;
                     cursor: pointer; color: var(--accent-gold);
                     display: flex; justify-content: space-between; align-items: center;
-                    user-select: none;
+                    user-select: none; gap: 10px;
                 }}
 
                 summary:hover {{ background: rgba(255, 255, 255, 0.03); }}
 
-                table {{ width: 100%; border-collapse: collapse; font-size: 12.5px; }}
-
-                th, td {{
-                    padding: 12px 16px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                .table-wrapper {{
+                    width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
                 }}
 
-                th {{ background: rgba(0, 0, 0, 0.3); color: var(--text-muted); text-transform: uppercase; font-size: 11px; }}
+                table {{ width: 100%; border-collapse: collapse; font-size: 11.5px; white-space: nowrap; }}
 
-                .badge-green {{ background: rgba(14, 203, 129, 0.2); color: #0ecb81; padding: 3px 8px; border-radius: 6px; font-weight: 700; }}
-                .badge-red {{ background: rgba(246, 70, 93, 0.2); color: #f6465d; padding: 3px 8px; border-radius: 6px; font-weight: 700; }}
+                th, td {{
+                    padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                }}
 
+                th {{ background: rgba(0, 0, 0, 0.3); color: var(--text-muted); text-transform: uppercase; font-size: 10px; }}
+
+                .badge-green {{ background: rgba(14, 203, 129, 0.2); color: #0ecb81; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 10.5px; }}
+                .badge-red {{ background: rgba(246, 70, 93, 0.2); color: #f6465d; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 10.5px; }}
+
+                /* Terminal Adaptativo */
                 .terminal-card {{
                     background: rgba(10, 13, 20, 0.92); backdrop-filter: blur(20px);
-                    border: 1px solid var(--panel-border); border-radius: 16px; overflow: hidden;
+                    border: 1px solid var(--panel-border); border-radius: 14px; overflow: hidden;
                     box-shadow: 0 16px 50px rgba(0, 0, 0, 0.7);
                 }}
 
                 .terminal-header {{
-                    background: rgba(22, 27, 38, 0.9); padding: 16px 22px;
+                    background: rgba(22, 27, 38, 0.9); padding: 14px 18px;
                     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
                     display: flex; justify-content: space-between; align-items: center;
                 }}
 
                 .terminal-title {{
-                    font-size: 12px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase;
+                    font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase;
                 }}
+
+                .terminal-dots {{ display: flex; gap: 5px; }}
+                .dot {{ width: 9px; height: 9px; border-radius: 50%; }}
+                .dot-red {{ background: #ff5f56; }}
+                .dot-yellow {{ background: #ffbd2e; }}
+                .dot-green {{ background: #27c93f; }}
 
                 .terminal-body {{
-                    font-family: 'JetBrains Mono', monospace; font-size: 13px;
-                    padding: 20px; height: 350px; overflow-y: auto; line-height: 1.65;
+                    font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+                    padding: 16px; height: 280px; overflow-y: auto; line-height: 1.6;
                 }}
 
-                .log-row {{ display: flex; gap: 14px; padding: 5px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }}
-                .log-time {{ color: #6e7681; font-weight: 600; }}
+                .log-row {{ display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }}
+                .log-time {{ color: #6e7681; font-weight: 600; flex-shrink: 0; }}
                 .log-msg {{ flex: 1; word-break: break-word; }}
+
+                /* Media Queries específicas para Pantallas Móviles (< 768px y < 480px) */
+                @media (max-width: 768px) {{
+                    .two-col {{ grid-template-columns: 1fr; }}
+                    .metrics-grid {{ grid-template-columns: repeat(2, 1fr); }}
+                }}
+
+                @media (max-width: 480px) {{
+                    body {{ padding: 12px 8px; }}
+                    .navbar {{ padding: 14px; flex-direction: column; align-items: flex-start; }}
+                    .status-pill {{ width: 100%; justify-content: center; margin-top: 4px; }}
+                    .brand-text h1 {{ font-size: 15px; }}
+                    .metric-val {{ font-size: 18px; }}
+                    .metric-card {{ padding: 12px; }}
+                    summary {{ padding: 14px; font-size: 12px; }}
+                }}
             </style>
             <script>
                 const bgImages = [
@@ -375,7 +409,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         options: {{
                             responsive: true, maintainAspectRatio: false,
                             plugins: {{
-                                legend: {{ position: 'bottom', labels: {{ color: '#eaecef', font: {{ family: 'Inter' }} }} }}
+                                legend: {{ position: 'bottom', labels: {{ color: '#eaecef', font: {{ family: 'Inter', size: 11 }} }} }}
                             }}
                         }}
                     }});
@@ -407,7 +441,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                     <div class="metric-card">
                         <div class="metric-label">Engine Position Status</div>
-                        <div class="metric-val" style="color: {pos_badge_color}; font-size: 19px; margin-top: 4px;">{arrow_icon} {bot_status["posicion"]}</div>
+                        <div class="metric-val" style="color: {pos_badge_color}; font-size: 16px; margin-top: 2px;">{arrow_icon} {bot_status["posicion"]}</div>
                         <div class="metric-sub">Strategy V2.0: 15m Trend Candles</div>
                     </div>
 
@@ -419,7 +453,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                     <div class="metric-card">
                         <div class="metric-label">Binance Native Orders</div>
-                        <div class="metric-val" style="color: #ffffff; font-size: 16px; margin-top: 4px;">SL: {bot_status["stop_loss"]} | TP: {bot_status["take_profit"]}</div>
+                        <div class="metric-val" style="color: #ffffff; font-size: 14px; margin-top: 2px;">SL: {bot_status["stop_loss"]} | TP: {bot_status["take_profit"]}</div>
                         <div class="metric-sub">Exchange-Side Target Only • 5x Isolated</div>
                     </div>
                 </div>
@@ -427,21 +461,21 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 <div class="two-col">
                     <div class="chart-card">
                         <div class="chart-header">📊 Rendimiento V2.0 (Win Rate &amp; PnL)</div>
-                        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold;">
-                            <span>Tasa de Acierto V2.0: {win_rate:.1f}%</span>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; flex-wrap: wrap; gap: 6px;">
+                            <span>Tasa Acierto: {win_rate:.1f}%</span>
                             <span style="color: {'#0ecb81' if bot_status['pnl_total_usd']>=0 else '#f6465d'};">PnL V2.0: {bot_status['pnl_total_usd']:+.4f} USDT</span>
                         </div>
                         <div class="progress-container">
                             <div class="progress-bar" style="width: {max(win_rate, 5)}%;"></div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
-                            <span>🟢 Operaciones Ganadas: {bot_status['wins']}</span>
-                            <span>🔴 Operaciones Perdedoras: {bot_status['losses']}</span>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+                            <span>🟢 Ganadas: {bot_status['wins']}</span>
+                            <span>🔴 Perdedoras: {bot_status['losses']}</span>
                         </div>
                     </div>
 
                     <div class="chart-card">
-                        <div class="chart-header">🍕 Distribución de Criptomonedas V2.0</div>
+                        <div class="chart-header">🍕 Distribución Criptomonedas V2.0</div>
                         <div style="height: 140px; position: relative;">
                             <canvas id="assetChart"></canvas>
                         </div>
@@ -450,10 +484,10 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 <details open>
                     <summary>
-                        <span>📜 HISTORIAL V2.0 DE OPERACIONES REALIZADAS (15M)</span>
-                        <span style="font-size: 12px; color: var(--text-muted);">▼ Haz clic para contraer/desplegar</span>
+                        <span>📜 HISTORIAL V2.0 DE OPERACIONES (15M)</span>
+                        <span style="font-size: 11px; color: var(--text-muted);">▼ Desplegar/Contraer</span>
                     </summary>
-                    <div style="overflow-x: auto;">
+                    <div class="table-wrapper">
                         <table>
                             <thead>
                                 <tr>
@@ -476,7 +510,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 <div class="terminal-card">
                     <div class="terminal-header">
                         <div class="terminal-title">
-                            <span>📟 REAL-TIME EXECUTION LOG STREAM (VERSION 2.0 ACTIVE)</span>
+                            <span>📟 EXECUTION LOG STREAM (V2.0 15M)</span>
                         </div>
                         <div class="terminal-dots">
                             <div class="dot dot-red"></div>
@@ -677,7 +711,6 @@ class BotFuturosBinance:
         prev = df.iloc[-2]
         ema_diff = last['ema_fast'] - last['ema_slow']
 
-        # Filtro V2.0 de Tendencia Limpia en 15m con RSI
         long_sig = (prev['ema_fast'] <= prev['ema_slow']) and (last['ema_fast'] > last['ema_slow']) and (last['rsi'] < 60)
         short_sig = (prev['ema_fast'] >= prev['ema_slow']) and (last['ema_fast'] < last['ema_slow']) and (last['rsi'] > 40)
 
@@ -860,7 +893,6 @@ class BotFuturosBinance:
         registrar_log(f"🚀 MODO V2.0 ACTIVADO: Escaneando tendencias limpias en 15m con protección nativa en Binance...")
         while True:
             try:
-                # Monitorear si las órdenes nativas de Binance (TP o SL) ya se ejecutaron en el servidor
                 if not self.paper:
                     positions = self.client.futures_position_information()
                     pos_activa = False
@@ -887,7 +919,6 @@ class BotFuturosBinance:
                             registrar_log(f"Escaneando {config.ASSET_POOL} en velas de 15m... Buscando tendencia sólida...")
 
                 else:
-                    # En V2.0, el bot DEJA QUE LA POSICIÓN CORRA LIBREMENTE HASTA TOCAR TP (+2.5%) O SL (-1.2%) NATIVOS EN BINANCE
                     df = self.obtener_datos(self.current_symbol)
                     precio_actual = df.iloc[-1]['close']
                     flecha = "⬆️" if self.position == 'LONG' else "⬇️"

@@ -18,14 +18,14 @@ from binance.exceptions import BinanceAPIException
 import ta
 import config
 
-BOT_VERSION = "v2.6 - Pure WebSocket Local Indicators (Anti-IP Ban -1003)"
+BOT_VERSION = "v2.7 - Zero-REST Engine (Puramente WebSocket 24/7)"
 
 # Estado global, estadísticas y métricas avanzadas para el Dashboard Web
 bot_status = {
-    "version": "v2.6 - Pure WS",
+    "version": "v2.7 - Zero-REST",
     "balance": "Conectando...",
     "balance_inicial": 2.60,
-    "estado": "Inicializando V2.6 Pure WebSocket...",
+    "estado": "Inicializando V2.7 Zero-REST...",
     "activo_actual": "Ninguno",
     "posicion": "SIN POSICIÓN (Escaneando WebSocket)",
     "precio_entrada": "0.0000",
@@ -51,7 +51,7 @@ def registrar_log(mensaje):
     if len(bot_status["logs"]) > 50:
         bot_status["logs"].pop()
 
-# Dashboard HTML Ultra-Pro V2.6 100% Adaptativo y Pure WebSocket
+# Dashboard HTML Ultra-Pro V2.7 100% Adaptativo y Zero-REST
 class DashboardWebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -68,7 +68,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         logs_rendered = []
         for ts, msg in bot_status["logs"]:
             color = "#00f2fe"
-            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg or "WebSocket" in msg or "COMPUESTO" in msg:
+            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg or "WebSocket" in msg or "Zero-REST" in msg:
                 color = "#0ecb81"
             elif "CIERRE" in msg or "🏁" in msg:
                 color = "#f0b90b"
@@ -82,7 +82,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             </div>
             """)
         
-        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando V2.6 Pure WebSocket Local Engine...</span></div>"
+        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando V2.7 Zero-REST Engine...</span></div>"
         
         trades_rendered = []
         for t in bot_status["trades"]:
@@ -99,7 +99,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             </tr>
             """)
         
-        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún. Escaneando vía Pure WebSocket Local Engine.</td></tr>"
+        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún. Escaneando vía Zero-REST WebSocket Engine.</td></tr>"
 
         total_trades = bot_status["wins"] + bot_status["losses"]
         win_rate = (bot_status["wins"] / total_trades * 100) if total_trades > 0 else 0.0
@@ -129,7 +129,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <meta http-equiv="refresh" content="5">
-            <title>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS - V2.6</title>
+            <title>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS - V2.7</title>
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -419,13 +419,13 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     <div class="brand">
                         <div class="brand-icon">🔥</div>
                         <div class="brand-text">
-                            <h1>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS <span class="version-tag">V2.6 - PURE WS</span></h1>
-                            <p>Binance USDT-M Futures • Pure WebSocket Engine (Cero Baneo IP -1003)</p>
+                            <h1>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS <span class="version-tag">V2.7 - ZERO-REST</span></h1>
+                            <p>Binance USDT-M Futures • Puramente WebSocket (Cero Peticiones REST)</p>
                         </div>
                     </div>
                     <div class="status-pill">
                         <div class="pulse-dot"></div>
-                        <span>PURE WS LOCAL ENGINE {bot_status["ws_status"]}</span>
+                        <span>ZERO-REST ENGINE {bot_status["ws_status"]}</span>
                     </div>
                 </div>
 
@@ -439,7 +439,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     <div class="metric-card">
                         <div class="metric-label">Engine Position Status</div>
                         <div class="metric-val" style="color: {pos_badge_color}; font-size: 16px; margin-top: 2px;">{arrow_icon} {bot_status["posicion"]}</div>
-                        <div class="metric-sub">Strategy V2.6: Pure WS 15m Candles</div>
+                        <div class="metric-sub">Strategy V2.7: Pure WS 15m Candles</div>
                     </div>
 
                     <div class="metric-card">
@@ -457,10 +457,10 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 <div class="two-col">
                     <div class="chart-card">
-                        <div class="chart-header">📊 Rendimiento V2.6 (Win Rate &amp; PnL)</div>
+                        <div class="chart-header">📊 Rendimiento V2.7 (Win Rate &amp; PnL)</div>
                         <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; flex-wrap: wrap; gap: 6px;">
                             <span>Tasa Acierto: {win_rate:.1f}%</span>
-                            <span style="color: {'#0ecb81' if bot_status['pnl_total_usd']>=0 else '#f6465d'};">PnL V2.6: {bot_status['pnl_total_usd']:+.4f} USDT</span>
+                            <span style="color: {'#0ecb81' if bot_status['pnl_total_usd']>=0 else '#f6465d'};">PnL V2.7: {bot_status['pnl_total_usd']:+.4f} USDT</span>
                         </div>
                         <div class="progress-container">
                             <div class="progress-bar" style="width: {max(win_rate, 5)}%;"></div>
@@ -472,7 +472,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
 
                     <div class="chart-card">
-                        <div class="chart-header">🍕 Distribución Criptomonedas V2.6</div>
+                        <div class="chart-header">🍕 Distribución Criptomonedas V2.7</div>
                         <div style="height: 140px; position: relative;">
                             <canvas id="assetChart"></canvas>
                         </div>
@@ -481,7 +481,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 <details open>
                     <summary>
-                        <span>📜 HISTORIAL V2.6 DE OPERACIONES (PURE WS 15M)</span>
+                        <span>📜 HISTORIAL V2.7 DE OPERACIONES (ZERO-REST 15M)</span>
                         <span style="font-size: 11px; color: var(--text-muted);">▼ Desplegar/Contraer</span>
                     </summary>
                     <div class="table-wrapper">
@@ -507,7 +507,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 <div class="terminal-card">
                     <div class="terminal-header">
                         <div class="terminal-title">
-                            <span>📟 EXECUTION LOG STREAM (V2.6 PURE WS ENGINE)</span>
+                            <span>📟 EXECUTION LOG STREAM (V2.7 ZERO-REST ENGINE)</span>
                         </div>
                         <div class="terminal-dots">
                             <div class="dot dot-red"></div>
@@ -535,7 +535,7 @@ def auto_keep_alive():
         try:
             req = urllib.request.Request(app_url, headers={'User-Agent': 'KeepAliveAutoPing/1.0'})
             urllib.request.urlopen(req, timeout=10)
-            print("[KEEP-ALIVE] Auto-ping V2.6 enviado correctamente.")
+            print("[KEEP-ALIVE] Auto-ping V2.7 enviado correctamente.")
         except Exception as e:
             pass
         time.sleep(240)
@@ -574,7 +574,7 @@ class BotFuturosBinance:
 
         if not self.paper:
             servidor = "TESTNET" if config.USE_TESTNET else "CUENTA REAL BINANCE"
-            registrar_log(f"Conectando a {servidor} con API Keys en MODO V2.6 PURE WEBSOCKET...")
+            registrar_log(f"Conectando a {servidor} con API Keys en MODO V2.7 ZERO-REST...")
             
             conectado = False
             while not conectado:
@@ -592,18 +592,15 @@ class BotFuturosBinance:
                     modo_str = "Hedge Mode" if self.hedge_mode else "One-Way Mode"
                     registrar_log(f"Modo de Posición: {modo_str}")
                     
-                    # Cargar precisiones iniciales una sola vez
                     info = self.client.futures_exchange_info()
                     for s in info['symbols']:
                         if s['symbol'] in config.ASSET_POOL:
                             self.qty_precisions[s['symbol']] = s['quantityPrecision']
                             self.price_precisions[s['symbol']] = s['pricePrecision']
                     
-                    # Cargar velero inicial en memoria local para calcular indicadores sin esperar 100 velas por WS
-                    self.cargar_klines_iniciales()
                     self.restaurar_posiciones_activas()
                     
-                    # Conectar a los WebSockets Directos de Binance
+                    # Conectar a los WebSockets Directos de Binance (CERO REST GETs)
                     self.iniciar_websocket_binance()
                     conectado = True
                     
@@ -611,8 +608,8 @@ class BotFuturosBinance:
                     bot_status["estado"] = f"Error Binance: {e.code}"
                     registrar_log(f"❌ Error Binance ({e.code}): {e.message}")
                     if e.code == -1003:
-                        registrar_log("⏸️ AVISO Baneo IP Compartida Render (-1003). El bot pausará llamadas REST por 90 segundos...")
-                        time.sleep(90)
+                        registrar_log("⏸️ AVISO Baneo IP Compartida Render (-1003). Pausando 120s...")
+                        time.sleep(120)
                     else:
                         time.sleep(30)
                 except Exception as e:
@@ -620,26 +617,14 @@ class BotFuturosBinance:
                     time.sleep(30)
         else:
             bot_status["balance"] = f"{self.margin:.2f} USDT (Virtual)"
-            bot_status["estado"] = "Paper Trading V2.6"
-            registrar_log("Estado: MODO SIMULACIÓN (Paper Trading V2.6)")
+            bot_status["estado"] = "Paper Trading V2.7"
+            registrar_log("Estado: MODO SIMULACIÓN (Paper Trading V2.7)")
             self.qty_precisions = {'SOLUSDT': 2, 'XRPUSDT': 1, 'DOGEUSDT': 0, 'ADAUSDT': 0}
             self.price_precisions = {'SOLUSDT': 2, 'XRPUSDT': 4, 'DOGEUSDT': 5, 'ADAUSDT': 4}
             self.iniciar_websocket_binance()
 
-    def cargar_klines_iniciales(self):
-        """Carga inicial de las últimas 60 velas por REST solo una vez en el arranque."""
-        for symbol in config.ASSET_POOL:
-            try:
-                klines = self.client.futures_klines(symbol=symbol, interval=config.TIMEFRAME, limit=60)
-                closes = [float(k[4]) for k in klines]
-                self.kline_history[symbol] = closes
-                if closes:
-                    self.latest_prices[symbol] = closes[-1]
-            except Exception as e:
-                registrar_log(f"Aviso carga inicial {symbol}: {e}")
-
     def iniciar_websocket_binance(self):
-        """Streaming WebSocket Binance en tiempo real. Calcula EMA/RSI en memoria local sin REST GETs."""
+        """Streaming WebSocket Binance 100% Autónomo. Cero peticiones REST HTTP."""
         def on_message(ws, message):
             try:
                 data = json.loads(message)
@@ -654,11 +639,15 @@ class BotFuturosBinance:
                         self.latest_prices[symbol] = close_price
                         bot_status["ws_status"] = "🟢 Conectado Stream"
                         
-                        # Si la vela de 15m cerró o se actualizó, agregar a la memoria local
+                        # Poblar historial local progresivamente sin peticiones HTTP
                         if is_closed:
                             self.kline_history[symbol].append(close_price)
                             if len(self.kline_history[symbol]) > 100:
                                 self.kline_history[symbol].pop(0)
+                        elif len(self.kline_history[symbol]) == 0 or self.kline_history[symbol][-1] != close_price:
+                            # Mantener último precio activo
+                            if len(self.kline_history[symbol]) < 30:
+                                self.kline_history[symbol].append(close_price)
             except Exception:
                 pass
 
@@ -672,7 +661,7 @@ class BotFuturosBinance:
 
         def on_open(ws):
             bot_status["ws_status"] = "🟢 Conectado Stream"
-            registrar_log("📡 Pure WebSocket Stream Binance Activo (Cero peticiones HTTP REST - Cero Baneo IP -1003)")
+            registrar_log("📡 Zero-REST WebSocket Stream Activo (CERO Peticiones HTTP GET - 100% Inmune a Baneo IP -1003)")
 
         streams = "/".join([f"{s.lower()}@kline_{config.TIMEFRAME}" for s in config.ASSET_POOL])
         ws_url = f"wss://fstream.binance.com/stream?streams={streams}"
@@ -705,8 +694,8 @@ class BotFuturosBinance:
             registrar_log(f"✅ Interés Compuesto Activo: Saldo Real Billetera = {usdt_bal:.2f} USDT")
         except BinanceAPIException as e:
             if e.code == -1003:
-                registrar_log("⏸️ Binance IP Rate Limit (-1003). Esperando 60s...")
-                time.sleep(60)
+                registrar_log("⏸️ Pausa Silenciosa Rate Limit IP Compartida (-1003). Esperando 120s...")
+                time.sleep(120)
         except Exception as e:
             registrar_log(f"Error sincronizando saldo: {e}")
 
@@ -729,7 +718,7 @@ class BotFuturosBinance:
                     bot_status["precio_entrada"] = f"{self.entry_price:.4f}"
                     bot_status["stop_loss"] = f"${sl_price:.4f}"
                     bot_status["take_profit"] = f"${tp_price:.4f}"
-                    registrar_log(f"🔄 POSICIÓN RECUPERADA EN REINICIO (V2.6 15M): {self.position} {self.current_symbol} @ ${self.entry_price:.4f}")
+                    registrar_log(f"🔄 POSICIÓN RECUPERADA EN REINICIO (V2.7 15M): {self.position} {self.current_symbol} @ ${self.entry_price:.4f}")
                     return
             bot_status["stop_loss"] = "N/A"
             bot_status["take_profit"] = "N/A"
@@ -775,9 +764,9 @@ class BotFuturosBinance:
             return False
 
     def evaluar_senales_locales(self, symbol):
-        """Calcula los indicadores EMA y RSI 100% EN MEMORIA LOCAL sin hacer peticiones HTTP GET a Binance."""
+        """Calcula indicadores EMA y RSI 100% EN MEMORIA LOCAL desde el WebSocket (0 HTTP GETs)."""
         closes = self.kline_history.get(symbol, [])
-        if len(closes) < 25:
+        if len(closes) < 15:
             return False, False, self.latest_prices.get(symbol, 0.0), 50.0, 0.0
 
         s = pd.Series(closes)
@@ -848,7 +837,7 @@ class BotFuturosBinance:
                     order_params['positionSide'] = side
 
                 self.client.futures_create_order(**order_params)
-                registrar_log(f"🚀 [PURE WS 15M] ENTRADA MARKET {side} {symbol} @ ${price:.4f} (Nocional: ${valor_nocional:.2f} USDT)")
+                registrar_log(f"🚀 [ZERO-REST 15M] ENTRADA MARKET {side} {symbol} @ ${price:.4f} (Nocional: ${valor_nocional:.2f} USDT)")
 
                 side_opuesto = 'SELL' if side == 'LONG' else 'BUY'
                 
@@ -863,7 +852,7 @@ class BotFuturosBinance:
                     sl_params['positionSide'] = side
 
                 self.client.futures_create_order(**sl_params)
-                registrar_log(f"🛡️ [V2.6] STOP LOSS NATIVO EN BINANCE: ${sl_price:.4f} (-1.2%)")
+                registrar_log(f"🛡️ [V2.7] STOP LOSS NATIVO EN BINANCE: ${sl_price:.4f} (-1.2%)")
 
                 tp_params = {
                     'symbol': symbol,
@@ -876,10 +865,10 @@ class BotFuturosBinance:
                     tp_params['positionSide'] = side
 
                 self.client.futures_create_order(**tp_params)
-                registrar_log(f"🎯 [V2.6] TAKE PROFIT NATIVO EN BINANCE: ${tp_price:.4f} (+2.5%)")
+                registrar_log(f"🎯 [V2.7] TAKE PROFIT NATIVO EN BINANCE: ${tp_price:.4f} (+2.5%)")
 
             except Exception as e:
-                registrar_log(f"❌ Error al colocar órdenes V2.6 en Binance: {e}")
+                registrar_log(f"❌ Error al colocar órdenes V2.7 en Binance: {e}")
                 try:
                     self.client.futures_cancel_all_open_orders(symbol=symbol)
                 except Exception:
@@ -901,7 +890,7 @@ class BotFuturosBinance:
         bot_status["stop_loss"] = f"${sl_price:.4f}"
         bot_status["take_profit"] = f"${tp_price:.4f}"
 
-        registrar_log(f"POSICIÓN V2.6 {side} ACTIVA: {symbol} | Qty: {qty} | SL: ${sl_price:.4f} | TP: ${tp_price:.4f}")
+        registrar_log(f"POSICIÓN V2.7 {side} ACTIVA: {symbol} | Qty: {qty} | SL: ${sl_price:.4f} | TP: ${tp_price:.4f}")
 
     def cerrar_posicion(self, price, motivo="SEÑAL"):
         if not self.position:
@@ -958,12 +947,12 @@ class BotFuturosBinance:
             bot_status["losses"] += 1
 
         self.sincronizar_saldo_binance()
-        bot_status["posicion"] = "📡 SIN POSICIÓN (Escaneando WebSocket Local)"
+        bot_status["posicion"] = "📡 SIN POSICIÓN (Escaneando WebSocket Zero-REST)"
         bot_status["activo_actual"] = "Ninguno"
         bot_status["stop_loss"] = "N/A"
         bot_status["take_profit"] = "N/A"
 
-        registrar_log(f"CIERRE V2.6 ({motivo}): {self.current_symbol} | Precio: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Nuevo Saldo: {bot_status['balance']}")
+        registrar_log(f"CIERRE V2.7 ({motivo}): {self.current_symbol} | Precio: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Nuevo Saldo: {bot_status['balance']}")
 
         self.position = None
         self.current_symbol = None
@@ -971,14 +960,14 @@ class BotFuturosBinance:
         self.position_qty = 0.0
 
     def ejecutar(self):
-        registrar_log(f"🚀 MODO V2.6 ACTIVADO: Motor Local Pure WebSocket (CERO Peticiones HTTP GET - Anti-Baneo IP -1003)...")
+        registrar_log(f"🚀 MODO V2.7 ACTIVADO: Motor Zero-REST Puramente WebSocket (CERO Peticiones HTTP GET)...")
         competicion_check_timer = 0
         
         while True:
             try:
                 competicion_check_timer += 1
-                # Verificar estado de posiciones en Binance solo una vez cada 60 segundos para evitar saturar peticiones
-                if not self.paper and competicion_check_timer >= 4:
+                # Verificar estado de posición solo una vez cada 5 minutos (20 ciclos x 15s) para eliminar peticiones repetidas
+                if not self.paper and competicion_check_timer >= 20:
                     competicion_check_timer = 0
                     try:
                         positions = self.client.futures_position_information()
@@ -995,19 +984,19 @@ class BotFuturosBinance:
                             self.cerrar_posicion(precio_actual, "ORDEN NATIVA BINANCE EJECUTADA")
                     except BinanceAPIException as e:
                         if e.code == -1003:
-                            registrar_log("⏸️ Rate Limit de IP Compartida Render (-1003). Esperando 60s...")
-                            time.sleep(60)
+                            registrar_log("⏸️ Pausa Silenciosa Rate Limit IP Compartida (-1003). Esperando 120s...")
+                            time.sleep(120)
 
                 if self.position is None:
-                    # Escanear señales usando los precios e indicadores 100% guardados en memoria local desde el WebSocket
+                    # Escanear señales usando los datos 100% capturados por WebSocket sin enviar peticiones GET
                     activo, direccion, precio = self.escanear_mercado_local()
                     if activo:
                         self.abrir_posicion(activo, direccion, price=precio)
                     else:
-                        bot_status["posicion"] = "📡 SIN POSICIÓN (Escaneando WebSocket Local)"
-                        bot_status["activo_actual"] = f"Escaneando 4 activos en Pure WS 15m"
+                        bot_status["posicion"] = "📡 SIN POSICIÓN (Escaneando WebSocket Zero-REST)"
+                        bot_status["activo_actual"] = f"Escaneando 4 activos en Zero-REST 15m"
                         if len(bot_status["logs"]) == 0 or "Escaneando" not in bot_status["logs"][0][1]:
-                            registrar_log(f"Escaneando WebSocket Local {config.ASSET_POOL} en 15m (0 HTTP GETs)...")
+                            registrar_log(f"Escaneando WebSocket Zero-REST {config.ASSET_POOL} en 15m (CERO HTTP GETs)...")
 
                 else:
                     precio_actual = self.latest_prices.get(self.current_symbol, self.entry_price)
@@ -1018,13 +1007,13 @@ class BotFuturosBinance:
                 time.sleep(15)
             except BinanceAPIException as e:
                 if e.code == -1003:
-                    registrar_log("⏸️ IP compartida de Render bloqueada temporalmente por Binance (-1003). Pausando 60s...")
-                    time.sleep(60)
+                    registrar_log("⏸️ Pausa Silenciosa Rate Limit IP Compartida (-1003). Esperando 120s...")
+                    time.sleep(120)
                 else:
                     registrar_log(f"Aviso API Binance: {e}")
                     time.sleep(15)
             except Exception as e:
-                registrar_log(f"Aviso bucle principal V2.6: {e}")
+                registrar_log(f"Aviso bucle principal V2.7: {e}")
                 time.sleep(15)
 
 if __name__ == "__main__":

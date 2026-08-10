@@ -5,6 +5,7 @@ import threading
 import urllib.request
 import json
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import parse_qs, urlparse
 
 # Forzar codificación UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -18,14 +19,15 @@ from binance.exceptions import BinanceAPIException
 import ta
 import config
 
-BOT_VERSION = "v2.7 - Zero-REST Engine (Puramente WebSocket 24/7)"
+BOT_VERSION = "v3.0 - Surgical Engine (SFP + FVG + Liquidity Sweeps + Pure WS)"
 
-# Estado global, estadísticas y métricas avanzadas para el Dashboard Web
+# Estado global, estadísticas y métricas para el Dashboard Web Pro V3.0
 bot_status = {
-    "version": "v2.7 - Zero-REST",
+    "version": "v3.0 - Surgical SFP+FVG+Sweeps",
+    "estrategia_activa": "V3.0", # "V3.0" o "V2.7"
     "balance": "Conectando...",
     "balance_inicial": 2.60,
-    "estado": "Inicializando V2.7 Zero-REST...",
+    "estado": "Inicializando V3.0 Surgical Pure WebSocket...",
     "activo_actual": "Ninguno",
     "posicion": "SIN POSICIÓN (Escaneando WebSocket)",
     "precio_entrada": "0.0000",
@@ -43,6 +45,9 @@ bot_status = {
     "logs": []
 }
 
+# Referencia global de la instancia del bot para conmutar estrategias desde la Web
+bot_instance = None
+
 def registrar_log(mensaje):
     timestamp = time.strftime('%H:%M:%S')
     linea = f"[{timestamp}] {mensaje}"
@@ -51,9 +56,23 @@ def registrar_log(mensaje):
     if len(bot_status["logs"]) > 50:
         bot_status["logs"].pop()
 
-# Dashboard HTML Ultra-Pro V2.7 100% Adaptativo y Zero-REST
+# Dashboard HTML Ultra-Pro V3.0 con Selector Interactivo de Estrategia
 class DashboardWebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        parsed_url = urlparse(self.path)
+        
+        # Endpoint API para conmutar estrategia desde los botones del Frontend
+        if parsed_url.path == "/set_strategy":
+            query = parse_qs(parsed_url.query)
+            mode = query.get("mode", ["V3.0"])[0]
+            if bot_instance:
+                bot_instance.cambiar_estrategia(mode)
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "ok", "mode": mode}).encode('utf-8'))
+            return
+
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
@@ -68,9 +87,9 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         logs_rendered = []
         for ts, msg in bot_status["logs"]:
             color = "#00f2fe"
-            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg or "WebSocket" in msg or "Zero-REST" in msg:
+            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg or "SFP" in msg or "SURGICAL" in msg:
                 color = "#0ecb81"
-            elif "CIERRE" in msg or "🏁" in msg:
+            elif "CIERRE" in msg or "🏁" in msg or "TAKE PROFIT" in msg:
                 color = "#f0b90b"
             elif "STOP LOSS" in msg or "❌" in msg or "-1003" in msg:
                 color = "#f6465d"
@@ -82,7 +101,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             </div>
             """)
         
-        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando V2.7 Zero-REST Engine...</span></div>"
+        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando V3.0 Surgical Pure WebSocket Engine...</span></div>"
         
         trades_rendered = []
         for t in bot_status["trades"]:
@@ -92,14 +111,14 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 <td>{t["time"]}</td>
                 <td><strong>{t["symbol"]}</strong></td>
                 <td><span class="{badge_cls}">{t["side"]}</span></td>
-                <td>${t["entry"]:.4f}</td>
-                <td>${t["exit"]:.4f}</td>
+                <td>{t["entry"]:.4f} USDT</td>
+                <td>{t["exit"]:.4f} USDT</td>
                 <td style="color: {'#0ecb81' if t['pnl_usd']>=0 else '#f6465d'}; font-weight: bold;">{t['pnl_usd']:+.4f} USDT</td>
                 <td><small>{t["reason"]}</small></td>
             </tr>
             """)
         
-        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún. Escaneando vía Zero-REST WebSocket Engine.</td></tr>"
+        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún. Escaneando vía V3.0 Surgical WebSocket.</td></tr>"
 
         total_trades = bot_status["wins"] + bot_status["losses"]
         win_rate = (bot_status["wins"] / total_trades * 100) if total_trades > 0 else 0.0
@@ -122,21 +141,24 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         xrp_c = bot_status["asset_counts"].get("XRPUSDT", 0)
         ada_c = bot_status["asset_counts"].get("ADAUSDT", 0)
 
+        strat_v3_active = "active-strat" if bot_status["estrategia_activa"] == "V3.0" else ""
+        strat_v27_active = "active-strat" if bot_status["estrategia_activa"] == "V2.7" else ""
+
         html = f"""
         <!DOCTYPE html>
-        <html lang="en">
+        <html lang="es">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <meta http-equiv="refresh" content="5">
-            <title>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS - V2.7</title>
+            <title>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS - V3.0</title>
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
             <style>
                 :root {{
-                    --panel-bg: rgba(15, 18, 26, 0.84);
+                    --panel-bg: rgba(15, 18, 26, 0.86);
                     --panel-border: rgba(255, 255, 255, 0.12);
                     --accent-gold: #f0b90b;
                     --accent-green: #0ecb81;
@@ -199,17 +221,17 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 .brand-icon {{
                     width: 42px; height: 42px;
-                    background: linear-gradient(135deg, #f0b90b 0%, #ff8c00 100%);
+                    background: linear-gradient(135deg, #00f2fe 0%, #0ecb81 100%);
                     border-radius: 12px;
                     display: flex; align-items: center; justify-content: center;
                     font-weight: 800; color: #000; font-size: 22px;
-                    box-shadow: 0 0 20px rgba(240, 185, 11, 0.4);
+                    box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
                     flex-shrink: 0;
                 }}
 
                 .brand-text h1 {{
-                    font-size: 18px; font-weight: 800; letter-spacing: -0.5px;
-                    background: linear-gradient(90deg, #ffffff 0%, #f0b90b 100%);
+                    font-size: 17.5px; font-weight: 800; letter-spacing: -0.5px;
+                    background: linear-gradient(90deg, #ffffff 0%, #00f2fe 100%);
                     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
                     line-height: 1.25;
                 }}
@@ -248,6 +270,43 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     100% {{ transform: scale(0.95); opacity: 0.8; }}
                 }}
 
+                /* Panel de Control de Estrategia V3.0 / V2.7 */
+                .strategy-selector-card {{
+                    background: var(--panel-bg); backdrop-filter: blur(20px);
+                    border: 1px solid var(--panel-border); border-radius: 16px;
+                    padding: 16px 20px; margin-bottom: 20px;
+                    display: flex; justify-content: space-between; align-items: center;
+                    flex-wrap: wrap; gap: 14px;
+                    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+                }}
+
+                .strategy-title {{
+                    font-size: 13px; font-weight: 800; color: #ffffff; text-transform: uppercase;
+                    letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;
+                }}
+
+                .btn-group {{ display: flex; gap: 10px; flex-wrap: wrap; }}
+
+                .strat-btn {{
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    color: var(--text-muted);
+                    padding: 10px 18px; border-radius: 12px;
+                    font-size: 12px; font-weight: 700; cursor: pointer;
+                    transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;
+                }}
+
+                .strat-btn:hover {{
+                    background: rgba(255, 255, 255, 0.12); color: #fff;
+                    transform: translateY(-1px);
+                }}
+
+                .strat-btn.active-strat {{
+                    background: linear-gradient(135deg, #00f2fe 0%, #0ecb81 100%);
+                    color: #000; border-color: transparent; font-weight: 800;
+                    box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+                }}
+
                 .metrics-grid {{
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -255,17 +314,14 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 }}
 
                 .metric-card {{
-                    background: var(--panel-bg);
-                    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-                    border: 1px solid var(--panel-border);
-                    border-radius: 14px; padding: 16px;
+                    background: var(--panel-bg); backdrop-filter: blur(20px);
+                    border: 1px solid var(--panel-border); border-radius: 14px; padding: 16px;
                     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
                     transition: transform 0.25s ease, box-shadow 0.25s ease;
                 }}
 
                 .metric-card:hover {{
-                    transform: translateY(-2px);
-                    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+                    transform: translateY(-2px); box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
                 }}
 
                 .metric-label {{
@@ -365,6 +421,9 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 @media (max-width: 768px) {{
                     .two-col {{ grid-template-columns: 1fr; }}
                     .metrics-grid {{ grid-template-columns: repeat(2, 1fr); }}
+                    .strategy-selector-card {{ flex-direction: column; align-items: flex-start; }}
+                    .btn-group {{ width: 100%; }}
+                    .strat-btn {{ flex: 1; justify-content: center; }}
                 }}
 
                 @media (max-width: 480px) {{
@@ -411,6 +470,16 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         }}
                     }});
                 }});
+
+                function cambiarEstrategia(modo) {{
+                    fetch('/set_strategy?mode=' + modo)
+                        .then(res => res.json())
+                        .then(data => {{
+                            if(data.status === 'ok') {{
+                                location.reload();
+                            }}
+                        }});
+                }}
             </script>
         </head>
         <body>
@@ -419,13 +488,29 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     <div class="brand">
                         <div class="brand-icon">🔥</div>
                         <div class="brand-text">
-                            <h1>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS <span class="version-tag">V2.7 - ZERO-REST</span></h1>
-                            <p>Binance USDT-M Futures • Puramente WebSocket (Cero Peticiones REST)</p>
+                            <h1>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS <span class="version-tag">V3.0 SURGICAL</span></h1>
+                            <p>Binance USDT-M Futures • Puramente WebSocket (SFP + FVG + Liquidity Sweeps)</p>
                         </div>
                     </div>
                     <div class="status-pill">
                         <div class="pulse-dot"></div>
-                        <span>ZERO-REST ENGINE {bot_status["ws_status"]}</span>
+                        <span>PURE WS ENGINE {bot_status["ws_status"]}</span>
+                    </div>
+                </div>
+
+                <!-- BOTONES INTERACTIVOS DE SELECCIÓN DE ESTRATEGIA EN TIEMPO REAL -->
+                <div class="strategy-selector-card">
+                    <div class="strategy-title">
+                        <span>🧠 MODO ESTRATÉGICO ACTIVO:</span>
+                        <span style="color: var(--accent-cyan); font-weight: 800;">{bot_status["estrategia_activa"]}</span>
+                    </div>
+                    <div class="btn-group">
+                        <button class="strat-btn {strat_v3_active}" onclick="cambiarEstrategia('V3.0')">
+                            🚀 MODO V3.0 (SURGICAL SFP + FVG + SWEEPS)
+                        </button>
+                        <button class="strat-btn {strat_v27_active}" onclick="cambiarEstrategia('V2.7')">
+                            ⚡ MODO V2.7 (EMA 9/21 + RSI)
+                        </button>
                     </div>
                 </div>
 
@@ -439,7 +524,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     <div class="metric-card">
                         <div class="metric-label">Engine Position Status</div>
                         <div class="metric-val" style="color: {pos_badge_color}; font-size: 16px; margin-top: 2px;">{arrow_icon} {bot_status["posicion"]}</div>
-                        <div class="metric-sub">Strategy V2.7: Pure WS 15m Candles</div>
+                        <div class="metric-sub">Estrategia Activa: {bot_status["estrategia_activa"]}</div>
                     </div>
 
                     <div class="metric-card">
@@ -457,10 +542,10 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 <div class="two-col">
                     <div class="chart-card">
-                        <div class="chart-header">📊 Rendimiento V2.7 (Win Rate &amp; PnL)</div>
+                        <div class="chart-header">📊 Rendimiento ({bot_status["estrategia_activa"]})</div>
                         <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; flex-wrap: wrap; gap: 6px;">
                             <span>Tasa Acierto: {win_rate:.1f}%</span>
-                            <span style="color: {'#0ecb81' if bot_status['pnl_total_usd']>=0 else '#f6465d'};">PnL V2.7: {bot_status['pnl_total_usd']:+.4f} USDT</span>
+                            <span style="color: {'#0ecb81' if bot_status['pnl_total_usd']>=0 else '#f6465d'};">PnL Neto: {bot_status['pnl_total_usd']:+.4f} USDT</span>
                         </div>
                         <div class="progress-container">
                             <div class="progress-bar" style="width: {max(win_rate, 5)}%;"></div>
@@ -472,7 +557,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
 
                     <div class="chart-card">
-                        <div class="chart-header">🍕 Distribución Criptomonedas V2.7</div>
+                        <div class="chart-header">🍕 Distribución Criptomonedas</div>
                         <div style="height: 140px; position: relative;">
                             <canvas id="assetChart"></canvas>
                         </div>
@@ -481,7 +566,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 <details open>
                     <summary>
-                        <span>📜 HISTORIAL V2.7 DE OPERACIONES (ZERO-REST 15M)</span>
+                        <span>📜 HISTORIAL DE OPERACIONES ({bot_status["estrategia_activa"]})</span>
                         <span style="font-size: 11px; color: var(--text-muted);">▼ Desplegar/Contraer</span>
                     </summary>
                     <div class="table-wrapper">
@@ -507,7 +592,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 <div class="terminal-card">
                     <div class="terminal-header">
                         <div class="terminal-title">
-                            <span>📟 EXECUTION LOG STREAM (V2.7 ZERO-REST ENGINE)</span>
+                            <span>📟 EXECUTION LOG STREAM (PURE WS ENGINE - {bot_status["estrategia_activa"]})</span>
                         </div>
                         <div class="terminal-dots">
                             <div class="dot dot-red"></div>
@@ -535,8 +620,8 @@ def auto_keep_alive():
         try:
             req = urllib.request.Request(app_url, headers={'User-Agent': 'KeepAliveAutoPing/1.0'})
             urllib.request.urlopen(req, timeout=10)
-            print("[KEEP-ALIVE] Auto-ping V2.7 enviado correctamente.")
-        except Exception as e:
+            print("[KEEP-ALIVE] Auto-ping V3.0 enviado correctamente.")
+        except Exception:
             pass
         time.sleep(240)
 
@@ -544,7 +629,7 @@ def iniciar_servidor_web():
     try:
         port = int(os.getenv("PORT", 10000))
         server = HTTPServer(('0.0.0.0', port), DashboardWebHandler)
-        registrar_log(f"Servidor Web Pro activo en puerto {port}")
+        registrar_log(f"Servidor Web Pro V3.0 activo en puerto {port}")
         server.serve_forever()
     except Exception as e:
         print(f"Aviso servidor web: {e}")
@@ -554,6 +639,9 @@ threading.Thread(target=auto_keep_alive, daemon=True).start()
 
 class BotFuturosBinance:
     def __init__(self):
+        global bot_instance
+        bot_instance = self
+        
         registrar_log(f"=== Inicializando Bot de Trading Binance Futuros ({BOT_VERSION}) ===")
         
         self.paper = config.PAPER_TRADING
@@ -568,13 +656,18 @@ class BotFuturosBinance:
         self.hedge_mode = False
         self.fee_rate = 0.0005 
         
+        # Selección de Estrategia ("V3.0" por defecto)
+        self.strategy_mode = "V3.0"
+        
         # Historial de Precios y Candlesticks en Memoria Local (Cero REST GETs)
         self.latest_prices = {}
         self.kline_history = {s: [] for s in config.ASSET_POOL}
+        self.kline_highs = {s: [] for s in config.ASSET_POOL}
+        self.kline_lows = {s: [] for s in config.ASSET_POOL}
 
         if not self.paper:
             servidor = "TESTNET" if config.USE_TESTNET else "CUENTA REAL BINANCE"
-            registrar_log(f"Conectando a {servidor} con API Keys en MODO V2.7 ZERO-REST...")
+            registrar_log(f"Conectando a {servidor} en MODO V3.0 SURGICAL PURE WEBSOCKET...")
             
             conectado = False
             while not conectado:
@@ -608,7 +701,7 @@ class BotFuturosBinance:
                     bot_status["estado"] = f"Error Binance: {e.code}"
                     registrar_log(f"❌ Error Binance ({e.code}): {e.message}")
                     if e.code == -1003:
-                        registrar_log("⏸️ AVISO Baneo IP Compartida Render (-1003). Pausando 120s...")
+                        registrar_log("⏸️ Pausa Silenciosa Rate Limit IP Compartida (-1003). Esperando 120s...")
                         time.sleep(120)
                     else:
                         time.sleep(30)
@@ -617,14 +710,21 @@ class BotFuturosBinance:
                     time.sleep(30)
         else:
             bot_status["balance"] = f"{self.margin:.2f} USDT (Virtual)"
-            bot_status["estado"] = "Paper Trading V2.7"
-            registrar_log("Estado: MODO SIMULACIÓN (Paper Trading V2.7)")
+            bot_status["estado"] = "Paper Trading V3.0"
+            registrar_log("Estado: MODO SIMULACIÓN (Paper Trading V3.0)")
             self.qty_precisions = {'SOLUSDT': 2, 'XRPUSDT': 1, 'DOGEUSDT': 0, 'ADAUSDT': 0}
             self.price_precisions = {'SOLUSDT': 2, 'XRPUSDT': 4, 'DOGEUSDT': 5, 'ADAUSDT': 4}
             self.iniciar_websocket_binance()
 
+    def cambiar_estrategia(self, nuevo_modo):
+        if nuevo_modo in ["V3.0", "V2.7"]:
+            self.strategy_mode = nuevo_modo
+            bot_status["estrategia_activa"] = nuevo_modo
+            bot_status["version"] = f"v3.0 ({nuevo_modo})"
+            registrar_log(f"🔀 ESTRATEGIA CAMBIADA VÍA DASHBOARD WEB: MODO ACTIVO = {nuevo_modo}")
+
     def iniciar_websocket_binance(self):
-        """Streaming WebSocket Binance 100% Autónomo. Cero peticiones REST HTTP."""
+        """Streaming WebSocket Binance 100% Autónomo (Cero Peticiones REST HTTP)."""
         def on_message(ws, message):
             try:
                 data = json.loads(message)
@@ -634,20 +734,28 @@ class BotFuturosBinance:
                         symbol = payload['s']
                         kline = payload['k']
                         close_price = float(kline['c'])
+                        high_price = float(kline['h'])
+                        low_price = float(kline['l'])
                         is_closed = kline['x']
                         
                         self.latest_prices[symbol] = close_price
                         bot_status["ws_status"] = "🟢 Conectado Stream"
                         
-                        # Poblar historial local progresivamente sin peticiones HTTP
+                        # Poblar velas en memoria RAM local
                         if is_closed:
                             self.kline_history[symbol].append(close_price)
-                            if len(self.kline_history[symbol]) > 100:
+                            self.kline_highs[symbol].append(high_price)
+                            self.kline_lows[symbol].append(low_price)
+                            
+                            if len(self.kline_history[symbol]) > 120:
                                 self.kline_history[symbol].pop(0)
+                                self.kline_highs[symbol].pop(0)
+                                self.kline_lows[symbol].pop(0)
                         elif len(self.kline_history[symbol]) == 0 or self.kline_history[symbol][-1] != close_price:
-                            # Mantener último precio activo
                             if len(self.kline_history[symbol]) < 30:
                                 self.kline_history[symbol].append(close_price)
+                                self.kline_highs[symbol].append(high_price)
+                                self.kline_lows[symbol].append(low_price)
             except Exception:
                 pass
 
@@ -661,7 +769,7 @@ class BotFuturosBinance:
 
         def on_open(ws):
             bot_status["ws_status"] = "🟢 Conectado Stream"
-            registrar_log("📡 Zero-REST WebSocket Stream Activo (CERO Peticiones HTTP GET - 100% Inmune a Baneo IP -1003)")
+            registrar_log("📡 V3.0 Surgical WebSocket Stream Activo (100% Inmune a Baneo IP -1003)")
 
         streams = "/".join([f"{s.lower()}@kline_{config.TIMEFRAME}" for s in config.ASSET_POOL])
         ws_url = f"wss://fstream.binance.com/stream?streams={streams}"
@@ -691,7 +799,7 @@ class BotFuturosBinance:
                 self.margin = config.MARGIN_USD
 
             bot_status["balance"] = f"{usdt_bal:.2f} USDT"
-            registrar_log(f"✅ Interés Compuesto Activo: Saldo Real Billetera = {usdt_bal:.2f} USDT")
+            registrar_log(f"✅ Interés Compuesto V3.0: Saldo Real Billetera = {usdt_bal:.2f} USDT")
         except BinanceAPIException as e:
             if e.code == -1003:
                 registrar_log("⏸️ Pausa Silenciosa Rate Limit IP Compartida (-1003). Esperando 120s...")
@@ -718,7 +826,7 @@ class BotFuturosBinance:
                     bot_status["precio_entrada"] = f"{self.entry_price:.4f}"
                     bot_status["stop_loss"] = f"${sl_price:.4f}"
                     bot_status["take_profit"] = f"${tp_price:.4f}"
-                    registrar_log(f"🔄 POSICIÓN RECUPERADA EN REINICIO (V2.7 15M): {self.position} {self.current_symbol} @ ${self.entry_price:.4f}")
+                    registrar_log(f"🔄 POSICIÓN RECUPERADA EN REINICIO (V3.0): {self.position} {self.current_symbol} @ ${self.entry_price:.4f}")
                     return
             bot_status["stop_loss"] = "N/A"
             bot_status["take_profit"] = "N/A"
@@ -738,12 +846,21 @@ class BotFuturosBinance:
         return round(price, precision)
 
     def calcular_precios_sl_tp(self, symbol, side, entry):
+        if self.strategy_mode == "V3.0":
+            # Ratios Quirúrgicos V3.0: TP +3.0% / SL -1.0% (Ratio 3 a 1)
+            tp_pct = 0.030
+            sl_pct = 0.010
+        else:
+            # Ratios Estándar V2.7: TP +2.5% / SL -1.2%
+            tp_pct = config.TAKE_PROFIT_PCT
+            sl_pct = config.STOP_LOSS_PCT
+
         if side == 'LONG':
-            sl = entry * (1.0 - config.STOP_LOSS_PCT)
-            tp = entry * (1.0 + config.TAKE_PROFIT_PCT)
+            sl = entry * (1.0 - sl_pct)
+            tp = entry * (1.0 + tp_pct)
         else: # SHORT
-            sl = entry * (1.0 + config.STOP_LOSS_PCT)
-            tp = entry * (1.0 - config.TAKE_PROFIT_PCT)
+            sl = entry * (1.0 + sl_pct)
+            tp = entry * (1.0 - tp_pct)
         
         sl_rounded = self.ajustar_precision_precio(symbol, sl)
         tp_rounded = self.ajustar_precision_precio(symbol, tp)
@@ -764,49 +881,81 @@ class BotFuturosBinance:
             return False
 
     def evaluar_senales_locales(self, symbol):
-        """Calcula indicadores EMA y RSI 100% EN MEMORIA LOCAL desde el WebSocket (0 HTTP GETs)."""
+        """Evaluación de Señales 100% EN MEMORIA LOCAL desde el WebSocket (0 HTTP GETs)."""
         closes = self.kline_history.get(symbol, [])
-        if len(closes) < 15:
-            return False, False, self.latest_prices.get(symbol, 0.0), 50.0, 0.0
+        highs = self.kline_highs.get(symbol, [])
+        lows = self.kline_lows.get(symbol, [])
 
-        s = pd.Series(closes)
-        ema_fast = ta.trend.ema_indicator(s, window=config.EMA_FAST)
-        ema_slow = ta.trend.ema_indicator(s, window=config.EMA_SLOW)
-        rsi = ta.momentum.rsi(s, window=config.RSI_PERIOD)
+        if len(closes) < 25:
+            return False, False, self.latest_prices.get(symbol, 0.0), "SIN_DATOS"
 
-        last_fast, prev_fast = ema_fast.iloc[-1], ema_fast.iloc[-2]
-        last_slow, prev_slow = ema_slow.iloc[-1], ema_slow.iloc[-2]
-        last_rsi = rsi.iloc[-1]
-        last_close = closes[-1]
-        ema_diff = last_fast - last_slow
+        price = closes[-1]
 
-        long_sig = (prev_fast <= prev_slow) and (last_fast > last_slow) and (last_rsi < 60)
-        short_sig = (prev_fast >= prev_slow) and (last_fast < last_slow) and (last_rsi > 40)
+        # MODO V3.0: ESTRATEGIA SURGICAL (MÓDULOS 8, 9 Y 10 COMBINADOS)
+        if self.strategy_mode == "V3.0":
+            s_highs = pd.Series(highs)
+            s_lows = pd.Series(lows)
+            s_closes = pd.Series(closes)
 
-        return long_sig, short_sig, last_close, last_rsi, ema_diff
+            swing_high = s_highs.iloc[:-1].rolling(24, min_periods=10).max().iloc[-1]
+            swing_low = s_lows.iloc[:-1].rolling(24, min_periods=10).min().iloc[-1]
+
+            curr_high = highs[-1]
+            curr_low = lows[-1]
+            curr_close = closes[-1]
+            curr_open = closes[-2] if len(closes) > 1 else curr_close
+
+            # Módulo 8 (SFP): Perforó el máximo/mínimo previo pero la vela cerró adentro con mecha
+            sfp_bearish = (curr_high > swing_high) and (curr_close < swing_high) and ((curr_high - max(curr_open, curr_close)) > abs(curr_close - curr_open) * 1.1)
+            sfp_bullish = (curr_low < swing_low) and (curr_close > swing_low) and ((min(curr_open, curr_close) - curr_low) > abs(curr_close - curr_open) * 1.1)
+
+            # Módulo 9 (FVG): Ineficiencia de precio
+            fvg_bearish = (len(highs) >= 3) and (highs[-1] < lows[-3])
+            fvg_bullish = (len(lows) >= 3) and (lows[-1] > highs[-3])
+
+            # Módulo 10 (Liquidity Sweeps): Sweep en nivel clave
+            setup_short = sfp_bearish or (curr_high > swing_high and fvg_bearish)
+            setup_long = sfp_bullish or (curr_low < swing_low and fvg_bullish)
+
+            setup_desc = "V3.0 SURGICAL SFP+FVG+SWEEP"
+            return setup_long, setup_short, price, setup_desc
+
+        # MODO V2.7: ESTRATEGIA ESTÁNDAR (EMA 9/21 + RSI)
+        else:
+            s = pd.Series(closes)
+            ema_fast = ta.trend.ema_indicator(s, window=config.EMA_FAST)
+            ema_slow = ta.trend.ema_indicator(s, window=config.EMA_SLOW)
+            rsi = ta.momentum.rsi(s, window=config.RSI_PERIOD)
+
+            last_fast, prev_fast = ema_fast.iloc[-1], ema_fast.iloc[-2]
+            last_slow, prev_slow = ema_slow.iloc[-1], ema_slow.iloc[-2]
+            last_rsi = rsi.iloc[-1]
+
+            long_sig = (prev_fast <= prev_slow) and (last_fast > last_slow) and (last_rsi < 60)
+            short_sig = (prev_fast >= prev_slow) and (last_fast < last_slow) and (last_rsi > 40)
+
+            return long_sig, short_sig, price, "V2.7 EMA 9/21 + RSI"
 
     def escanear_mercado_local(self):
         mejor_activo = None
         mejor_direccion = None
         mejor_precio = 0.0
-        max_fuerza = -1.0
 
         for symbol in config.ASSET_POOL:
             try:
-                long_sig, short_sig, price, rsi, ema_diff = self.evaluar_senales_locales(symbol)
-                fuerza = abs(ema_diff)
+                long_sig, short_sig, price, desc = self.evaluar_senales_locales(symbol)
 
-                if long_sig and fuerza > max_fuerza:
-                    max_fuerza = fuerza
+                if long_sig:
                     mejor_activo = symbol
                     mejor_direccion = 'LONG'
                     mejor_precio = price
-                elif short_sig and fuerza > max_fuerza:
-                    max_fuerza = fuerza
+                    break
+                elif short_sig:
                     mejor_activo = symbol
                     mejor_direccion = 'SHORT'
                     mejor_precio = price
-            except Exception as e:
+                    break
+            except Exception:
                 pass
 
         return mejor_activo, mejor_direccion, mejor_precio
@@ -837,7 +986,7 @@ class BotFuturosBinance:
                     order_params['positionSide'] = side
 
                 self.client.futures_create_order(**order_params)
-                registrar_log(f"🚀 [ZERO-REST 15M] ENTRADA MARKET {side} {symbol} @ ${price:.4f} (Nocional: ${valor_nocional:.2f} USDT)")
+                registrar_log(f"🚀 [{self.strategy_mode} 15M] ENTRADA MARKET {side} {symbol} @ ${price:.4f} (Nocional: ${valor_nocional:.2f} USDT)")
 
                 side_opuesto = 'SELL' if side == 'LONG' else 'BUY'
                 
@@ -852,7 +1001,7 @@ class BotFuturosBinance:
                     sl_params['positionSide'] = side
 
                 self.client.futures_create_order(**sl_params)
-                registrar_log(f"🛡️ [V2.7] STOP LOSS NATIVO EN BINANCE: ${sl_price:.4f} (-1.2%)")
+                registrar_log(f"🛡️ [{self.strategy_mode}] STOP LOSS NATIVO EN BINANCE: ${sl_price:.4f}")
 
                 tp_params = {
                     'symbol': symbol,
@@ -865,10 +1014,10 @@ class BotFuturosBinance:
                     tp_params['positionSide'] = side
 
                 self.client.futures_create_order(**tp_params)
-                registrar_log(f"🎯 [V2.7] TAKE PROFIT NATIVO EN BINANCE: ${tp_price:.4f} (+2.5%)")
+                registrar_log(f"🎯 [{self.strategy_mode}] TAKE PROFIT NATIVO EN BINANCE: ${tp_price:.4f}")
 
             except Exception as e:
-                registrar_log(f"❌ Error al colocar órdenes V2.7 en Binance: {e}")
+                registrar_log(f"❌ Error al colocar órdenes {self.strategy_mode} en Binance: {e}")
                 try:
                     self.client.futures_cancel_all_open_orders(symbol=symbol)
                 except Exception:
@@ -890,7 +1039,7 @@ class BotFuturosBinance:
         bot_status["stop_loss"] = f"${sl_price:.4f}"
         bot_status["take_profit"] = f"${tp_price:.4f}"
 
-        registrar_log(f"POSICIÓN V2.7 {side} ACTIVA: {symbol} | Qty: {qty} | SL: ${sl_price:.4f} | TP: ${tp_price:.4f}")
+        registrar_log(f"POSICIÓN {self.strategy_mode} {side} ACTIVA: {symbol} | Qty: {qty} | SL: ${sl_price:.4f} | TP: ${tp_price:.4f}")
 
     def cerrar_posicion(self, price, motivo="SEÑAL"):
         if not self.position:
@@ -936,7 +1085,7 @@ class BotFuturosBinance:
             "entry": self.entry_price,
             "exit": price,
             "pnl_usd": ganancia_neta,
-            "reason": motivo
+            "reason": f"{self.strategy_mode} - {motivo}"
         }
         bot_status["trades"].insert(0, trade_record)
         bot_status["asset_counts"][self.current_symbol] = bot_status["asset_counts"].get(self.current_symbol, 0) + 1
@@ -947,12 +1096,12 @@ class BotFuturosBinance:
             bot_status["losses"] += 1
 
         self.sincronizar_saldo_binance()
-        bot_status["posicion"] = "📡 SIN POSICIÓN (Escaneando WebSocket Zero-REST)"
+        bot_status["posicion"] = f"📡 SIN POSICIÓN (Escaneando WebSocket {self.strategy_mode})"
         bot_status["activo_actual"] = "Ninguno"
         bot_status["stop_loss"] = "N/A"
         bot_status["take_profit"] = "N/A"
 
-        registrar_log(f"CIERRE V2.7 ({motivo}): {self.current_symbol} | Precio: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Nuevo Saldo: {bot_status['balance']}")
+        registrar_log(f"CIERRE {self.strategy_mode} ({motivo}): {self.current_symbol} | Precio: ${price:.4f} | Resultado Neto: {ganancia_neta:+.4f} USDT | Nuevo Saldo: {bot_status['balance']}")
 
         self.position = None
         self.current_symbol = None
@@ -960,13 +1109,13 @@ class BotFuturosBinance:
         self.position_qty = 0.0
 
     def ejecutar(self):
-        registrar_log(f"🚀 MODO V2.7 ACTIVADO: Motor Zero-REST Puramente WebSocket (CERO Peticiones HTTP GET)...")
+        registrar_log(f"🚀 MODO V3.0 SURGICAL ACTIVADO: Motor WebSocket 100% Autónomo (CERO Peticiones HTTP GET)...")
         competicion_check_timer = 0
         
         while True:
             try:
                 competicion_check_timer += 1
-                # Verificar estado de posición solo una vez cada 5 minutos (20 ciclos x 15s) para eliminar peticiones repetidas
+                # Verificar estado de posición en Binance solo una vez cada 5 minutos (20 ciclos x 15s)
                 if not self.paper and competicion_check_timer >= 20:
                     competicion_check_timer = 0
                     try:
@@ -993,10 +1142,10 @@ class BotFuturosBinance:
                     if activo:
                         self.abrir_posicion(activo, direccion, price=precio)
                     else:
-                        bot_status["posicion"] = "📡 SIN POSICIÓN (Escaneando WebSocket Zero-REST)"
-                        bot_status["activo_actual"] = f"Escaneando 4 activos en Zero-REST 15m"
+                        bot_status["posicion"] = f"📡 SIN POSICIÓN (Escaneando WebSocket {self.strategy_mode})"
+                        bot_status["activo_actual"] = f"Escaneando 4 activos en Modo {self.strategy_mode} 15m"
                         if len(bot_status["logs"]) == 0 or "Escaneando" not in bot_status["logs"][0][1]:
-                            registrar_log(f"Escaneando WebSocket Zero-REST {config.ASSET_POOL} en 15m (CERO HTTP GETs)...")
+                            registrar_log(f"Escaneando WebSocket Modo {self.strategy_mode} {config.ASSET_POOL} en 15m...")
 
                 else:
                     precio_actual = self.latest_prices.get(self.current_symbol, self.entry_price)
@@ -1013,7 +1162,7 @@ class BotFuturosBinance:
                     registrar_log(f"Aviso API Binance: {e}")
                     time.sleep(15)
             except Exception as e:
-                registrar_log(f"Aviso bucle principal V2.7: {e}")
+                registrar_log(f"Aviso bucle principal V3.0: {e}")
                 time.sleep(15)
 
 if __name__ == "__main__":

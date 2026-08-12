@@ -127,9 +127,44 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         doge_c = bot_status["asset_counts"].get("DOGEUSDT", 0)
         xrp_c = bot_status["asset_counts"].get("XRPUSDT", 0)
         ada_c = bot_status["asset_counts"].get("ADAUSDT", 0)
-
         strat_v3_active = "active-strat" if bot_status["estrategia_activa"] == "V3.0" else ""
         strat_v27_active = "active-strat" if bot_status["estrategia_activa"] == "V2.7" else ""
+
+        logs_rendered = []
+        for ts, msg in bot_status["logs"]:
+            color = "#00f2fe"
+            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg or "SFP" in msg or "SURGICAL" in msg:
+                color = "#0ecb81"
+            elif "CIERRE" in msg or "🏁" in msg or "TAKE PROFIT" in msg:
+                color = "#f0b90b"
+            elif "STOP LOSS" in msg or "❌" in msg or "-1003" in msg:
+                color = "#f6465d"
+            
+            logs_rendered.append(f"""
+            <div class="log-row">
+                <span class="log-time">[{ts}]</span>
+                <span class="log-msg" style="color: {color};">{msg}</span>
+            </div>
+            """)
+        
+        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando V3.0 Surgical Pure WebSocket Engine...</span></div>"
+        
+        trades_rendered = []
+        for t in bot_status["trades"]:
+            badge_cls = "badge-green" if t["pnl_usd"] >= 0 else "badge-red"
+            trades_rendered.append(f"""
+            <tr>
+                <td>{t["time"]}</td>
+                <td><strong>{t["symbol"]}</strong></td>
+                <td><span class="{badge_cls}">{t["side"]}</span></td>
+                <td>{t["entry"]:.4f} USDT</td>
+                <td>{t["exit"]:.4f} USDT</td>
+                <td style="color: {'#0ecb81' if t['pnl_usd']>=0 else '#f6465d'}; font-weight: bold;">{t['pnl_usd']:+.4f} USDT</td>
+                <td><small>{t["reason"]}</small></td>
+            </tr>
+            """)
+        
+        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún. Escaneando vía V3.0 Surgical WebSocket.</td></tr>"
 
         html = f"""
         <!DOCTYPE html>

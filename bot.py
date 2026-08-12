@@ -562,7 +562,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                       <script type="text/javascript">
                       new TradingView.widget(
-                      {
+                      {{
                       "autosize": true,
                       "symbol": "BINANCE:SOLUSDT.P",
                       "interval": "15",
@@ -581,7 +581,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         "Volume@tv-basicstudies",
                         "RSI@tv-basicstudies"
                       ]
-                    }
+                    }}
                       );
                       </script>
                     </div>

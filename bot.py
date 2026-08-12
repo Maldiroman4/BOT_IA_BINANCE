@@ -144,6 +144,15 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         strat_v3_active = "active-strat" if bot_status["estrategia_activa"] == "V3.0" else ""
         strat_v27_active = "active-strat" if bot_status["estrategia_activa"] == "V2.7" else ""
 
+        velas_acumuladas = 0
+        if bot_instance and hasattr(bot_instance, 'kline_history'):
+            for symbol in bot_instance.kline_history:
+                if len(bot_instance.kline_history[symbol]) > velas_acumuladas:
+                    velas_acumuladas = len(bot_instance.kline_history[symbol])
+            
+        velas_color = "#f0b90b" if velas_acumuladas < 96 else "#0ecb81"
+        velas_text = "Calentando..." if velas_acumuladas < 96 else "Listo"
+
         html = f"""
         <!DOCTYPE html>
         <html lang="es">
@@ -537,6 +546,44 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         <div class="metric-label">Binance Native Orders</div>
                         <div class="metric-val" style="color: #ffffff; font-size: 14px; margin-top: 2px;">SL: {bot_status["stop_loss"]} | TP: {bot_status["take_profit"]}</div>
                         <div class="metric-sub">Exchange-Side Target Only • 5x Isolated</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">Memoria V3.0 (Velas 15m)</div>
+                        <div class="metric-val" style="color: {velas_color}; font-size: 20px;">{velas_acumuladas}/96 ({velas_text})</div>
+                        <div class="metric-sub">Requisito para Liquidity Sweeps</div>
+                    </div>
+                </div>
+
+                <!-- TRADINGVIEW WIDGET (Gráfico en tiempo real Binance WS) -->
+                <div class="chart-card" style="margin-bottom: 20px; height: 450px; padding: 0; overflow: hidden; border: 1px solid var(--panel-border);">
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                      <div id="tradingview_widget" style="height:calc(100% - 32px);width:100%"></div>
+                      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                      <script type="text/javascript">
+                      new TradingView.widget(
+                      {
+                      "autosize": true,
+                      "symbol": "BINANCE:SOLUSDT.P",
+                      "interval": "15",
+                      "timezone": "America/La_Paz",
+                      "theme": "dark",
+                      "style": "1",
+                      "locale": "es",
+                      "enable_publishing": false,
+                      "backgroundColor": "rgba(10, 13, 20, 0.92)",
+                      "gridColor": "rgba(255, 255, 255, 0.05)",
+                      "hide_top_toolbar": false,
+                      "hide_legend": false,
+                      "save_image": false,
+                      "container_id": "tradingview_widget",
+                      "studies": [
+                        "Volume@tv-basicstudies",
+                        "RSI@tv-basicstudies"
+                      ]
+                    }
+                      );
+                      </script>
                     </div>
                 </div>
 

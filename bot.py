@@ -73,53 +73,40 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"status": "ok", "mode": mode}).encode('utf-8'))
             return
 
+        # Endpoint API para actualización en tiempo real silenciosa (sin recargar la página)
+        if parsed_url.path == "/api/status":
+            candle_counts = {}
+            latest_prices = {}
+            if bot_instance and hasattr(bot_instance, 'kline_history'):
+                for sym in config.ASSET_POOL:
+                    candle_counts[sym] = len(bot_instance.kline_history.get(sym, []))
+                    latest_prices[sym] = bot_instance.latest_prices.get(sym, 0.0)
+            
+            total_trades = bot_status["wins"] + bot_status["losses"]
+            win_rate = (bot_status["wins"] / total_trades * 100) if total_trades > 0 else 0.0
+
+            data = {
+                "bot_status": bot_status,
+                "candle_counts": candle_counts,
+                "latest_prices": latest_prices,
+                "win_rate": round(win_rate, 1),
+                "total_trades": total_trades
+            }
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(data).encode('utf-8'))
+            return
+
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         
-        bg_images = [
-            "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1920&q=80",
-            "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80",
-            "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1920&q=80",
-            "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1920&q=80"
-        ]
+        candle_counts = {s: 0 for s in config.ASSET_POOL}
+        if bot_instance and hasattr(bot_instance, 'kline_history'):
+            for s in config.ASSET_POOL:
+                candle_counts[s] = len(bot_instance.kline_history.get(s, []))
         
-        logs_rendered = []
-        for ts, msg in bot_status["logs"]:
-            color = "#00f2fe"
-            if "ENTRADA" in msg or "🚀" in msg or "NATIVA" in msg or "SFP" in msg or "SURGICAL" in msg:
-                color = "#0ecb81"
-            elif "CIERRE" in msg or "🏁" in msg or "TAKE PROFIT" in msg:
-                color = "#f0b90b"
-            elif "STOP LOSS" in msg or "❌" in msg or "-1003" in msg:
-                color = "#f6465d"
-            
-            logs_rendered.append(f"""
-            <div class="log-row">
-                <span class="log-time">[{ts}]</span>
-                <span class="log-msg" style="color: {color};">{msg}</span>
-            </div>
-            """)
-        
-        logs_html = "".join(logs_rendered) if logs_rendered else "<div class='log-row'><span class='log-msg'>Iniciando V3.0 Surgical Pure WebSocket Engine...</span></div>"
-        
-        trades_rendered = []
-        for t in bot_status["trades"]:
-            badge_cls = "badge-green" if t["pnl_usd"] >= 0 else "badge-red"
-            trades_rendered.append(f"""
-            <tr>
-                <td>{t["time"]}</td>
-                <td><strong>{t["symbol"]}</strong></td>
-                <td><span class="{badge_cls}">{t["side"]}</span></td>
-                <td>{t["entry"]:.4f} USDT</td>
-                <td>{t["exit"]:.4f} USDT</td>
-                <td style="color: {'#0ecb81' if t['pnl_usd']>=0 else '#f6465d'}; font-weight: bold;">{t['pnl_usd']:+.4f} USDT</td>
-                <td><small>{t["reason"]}</small></td>
-            </tr>
-            """)
-        
-        trades_html = "".join(trades_rendered) if trades_rendered else "<tr><td colspan='7' style='text-align: center; color: #848e9c; padding: 20px;'>No hay operaciones cerradas aún. Escaneando vía V3.0 Surgical WebSocket.</td></tr>"
-
         total_trades = bot_status["wins"] + bot_status["losses"]
         win_rate = (bot_status["wins"] / total_trades * 100) if total_trades > 0 else 0.0
         
@@ -144,27 +131,18 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
         strat_v3_active = "active-strat" if bot_status["estrategia_activa"] == "V3.0" else ""
         strat_v27_active = "active-strat" if bot_status["estrategia_activa"] == "V2.7" else ""
 
-        velas_acumuladas = 0
-        if bot_instance and hasattr(bot_instance, 'kline_history'):
-            for symbol in bot_instance.kline_history:
-                if len(bot_instance.kline_history[symbol]) > velas_acumuladas:
-                    velas_acumuladas = len(bot_instance.kline_history[symbol])
-            
-        velas_color = "#f0b90b" if velas_acumuladas < 96 else "#0ecb81"
-        velas_text = "Calentando..." if velas_acumuladas < 96 else "Listo"
-
         html = f"""
         <!DOCTYPE html>
         <html lang="es">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <meta http-equiv="refresh" content="5">
             <title>MARIO &amp; JOEL LIMPIAS BOT , MECHEROS like LUCAS - V3.0</title>
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
             <style>
                 :root {{
                     --panel-bg: rgba(15, 18, 26, 0.86);
@@ -279,7 +257,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     100% {{ transform: scale(0.95); opacity: 0.8; }}
                 }}
 
-                /* Panel de Control de Estrategia V3.0 / V2.7 */
                 .strategy-selector-card {{
                     background: var(--panel-bg); backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border); border-radius: 16px;
@@ -318,7 +295,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 .metrics-grid {{
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
                     gap: 12px; margin-bottom: 20px;
                 }}
 
@@ -338,8 +315,50 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
                 }}
 
-                .metric-val {{ font-size: 22px; font-weight: 800; letter-spacing: -0.5px; word-break: break-word; }}
+                .metric-val {{ font-size: 20px; font-weight: 800; letter-spacing: -0.5px; word-break: break-word; }}
                 .metric-sub {{ font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.3; }}
+
+                /* Panel de Memoria de los 4 Activos */
+                .candle-grid {{
+                    display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;
+                }}
+
+                .candle-badge {{
+                    background: rgba(255, 255, 255, 0.05); padding: 4px 8px; border-radius: 6px;
+                    font-size: 11px; font-weight: 700; display: flex; justify-content: space-between;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                }}
+
+                /* Selector de Activos en TradingView */
+                .tv-card {{
+                    background: var(--panel-bg); backdrop-filter: blur(20px);
+                    border: 1px solid var(--panel-border); border-radius: 16px;
+                    margin-bottom: 20px; overflow: hidden;
+                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+                }}
+
+                .tv-toolbar {{
+                    display: flex; justify-content: space-between; align-items: center;
+                    padding: 12px 18px; background: rgba(10, 13, 20, 0.95);
+                    border-bottom: 1px solid var(--panel-border); flex-wrap: wrap; gap: 10px;
+                }}
+
+                .tv-tabs {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+
+                .tv-tab {{
+                    background: rgba(255, 255, 255, 0.06);
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    color: var(--text-muted); padding: 6px 14px; border-radius: 8px;
+                    font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s ease;
+                }}
+
+                .tv-tab:hover {{ background: rgba(255, 255, 255, 0.12); color: #fff; }}
+
+                .tv-tab.active-asset {{
+                    background: linear-gradient(135deg, #00f2fe 0%, #0ecb81 100%);
+                    color: #000; border-color: transparent; font-weight: 800;
+                    box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+                }}
 
                 .two-col {{
                     display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;
@@ -433,16 +452,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     .strategy-selector-card {{ flex-direction: column; align-items: flex-start; }}
                     .btn-group {{ width: 100%; }}
                     .strat-btn {{ flex: 1; justify-content: center; }}
-                }}
-
-                @media (max-width: 480px) {{
-                    body {{ padding: 12px 8px; }}
-                    .navbar {{ padding: 14px; flex-direction: column; align-items: flex-start; }}
-                    .status-pill {{ width: 100%; justify-content: center; margin-top: 4px; }}
-                    .brand-text h1 {{ font-size: 15px; }}
-                    .metric-val {{ font-size: 18px; }}
-                    .metric-card {{ padding: 12px; }}
-                    summary {{ padding: 14px; font-size: 12px; }}
+                    .candle-grid {{ grid-template-columns: 1fr; }}
                 }}
             </style>
             <script>
@@ -453,15 +463,56 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1920&q=80"
                 ];
                 let currentIdx = Math.floor(Math.random() * bgImages.length);
+                let currentAsset = 'SOLUSDT';
+                let assetChartInstance = null;
+
+                function cargarTradingView(symbol) {{
+                    currentAsset = symbol;
+                    document.querySelectorAll('.tv-tab').forEach(b => {{
+                        if (b.dataset.symbol === symbol) {{
+                            b.classList.add('active-asset');
+                        }} else {{
+                            b.classList.remove('active-asset');
+                        }}
+                    }});
+                    
+                    document.getElementById('tradingview_container').innerHTML = '<div id="tradingview_widget" style="height:100%;width:100%"></div>';
+                    
+                    new TradingView.widget({{
+                        "autosize": true,
+                        "symbol": "BINANCE:" + symbol + ".P",
+                        "interval": "15",
+                        "timezone": "America/La_Paz",
+                        "theme": "dark",
+                        "style": "1",
+                        "locale": "es",
+                        "enable_publishing": false,
+                        "backgroundColor": "rgba(10, 13, 20, 0.95)",
+                        "gridColor": "rgba(255, 255, 255, 0.05)",
+                        "hide_top_toolbar": false,
+                        "hide_legend": false,
+                        "save_image": false,
+                        "container_id": "tradingview_widget",
+                        "studies": [
+                            "Volume@tv-basicstudies",
+                            "RSI@tv-basicstudies"
+                        ]
+                    }});
+                }}
+
                 document.addEventListener("DOMContentLoaded", () => {{
                     document.body.style.backgroundImage = `url('${{bgImages[currentIdx]}}')`;
                     setInterval(() => {{
                         currentIdx = (currentIdx + 1) % bgImages.length;
                         document.body.style.backgroundImage = `url('${{bgImages[currentIdx]}}')`;
-                    }}, 5000);
+                    }}, 8000);
 
+                    // Inicializar TradingView con SOLUSDT
+                    cargarTradingView('SOLUSDT');
+
+                    // Gráfico de Dona
                     const ctx = document.getElementById('assetChart').getContext('2d');
-                    new Chart(ctx, {{
+                    assetChartInstance = new Chart(ctx, {{
                         type: 'doughnut',
                         data: {{
                             labels: ['SOL/USDT', 'DOGE/USDT', 'XRP/USDT', 'ADA/USDT'],
@@ -478,14 +529,78 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                             }}
                         }}
                     }});
+
+                    // Polling reactivo silencioso cada 2 segundos (SIN RECARGAR LA PÁGINA)
+                    setInterval(actualizarEstadoSilencioso, 2000);
                 }});
+
+                function actualizarEstadoSilencioso() {{
+                    fetch('/api/status')
+                        .then(r => r.json())
+                        .then(data => {{
+                            const st = data.bot_status;
+                            document.getElementById('val-balance').innerText = st.balance;
+                            document.getElementById('val-posicion').innerText = st.posicion;
+                            document.getElementById('val-activo').innerText = st.activo_actual;
+                            document.getElementById('val-ordenes').innerText = 'SL: ' + st.stop_loss + ' | TP: ' + st.take_profit;
+                            document.getElementById('ws-pill-status').innerText = 'PURE WS ENGINE ' + st.ws_status;
+                            document.getElementById('active-strat-title').innerText = st.estrategia_activa;
+                            
+                            // Rendimiento
+                            document.getElementById('val-winrate').innerText = 'Tasa Acierto: ' + data.win_rate + '%';
+                            document.getElementById('val-pnl').innerText = 'PnL Neto: ' + (st.pnl_total_usd >= 0 ? '+' : '') + st.pnl_total_usd.toFixed(4) + ' USDT';
+                            document.getElementById('val-pnl').style.color = st.pnl_total_usd >= 0 ? '#0ecb81' : '#f6465d';
+                            document.getElementById('val-wins').innerText = '🟢 Ganadas: ' + st.wins;
+                            document.getElementById('val-losses').innerText = '🔴 Perdedoras: ' + st.losses;
+                            document.getElementById('val-progress').style.width = Math.max(data.win_rate, 5) + '%';
+
+                            // Velas por activo
+                            if (data.candle_counts) {{
+                                for (const [sym, count] of Object.entries(data.candle_counts)) {{
+                                    const el = document.getElementById('candle-' + sym);
+                                    if (el) {{
+                                        const color = count >= 96 ? '#0ecb81' : '#f0b90b';
+                                        el.innerHTML = `<span style="color: #a0aec0;">${{sym.replace('USDT','')}}:</span> <span style="color: ${{color}};">${{count}}/96</span>`;
+                                    }}
+                                }}
+                            }}
+
+                            // Terminal Logs
+                            if (st.logs && st.logs.length > 0) {{
+                                let logsHtml = '';
+                                for (const [ts, msg] of st.logs) {{
+                                    let color = "#00f2fe";
+                                    if (msg.includes("ENTRADA") || msg.includes("🚀") || msg.includes("NATIVA") || msg.includes("SFP")) color = "#0ecb81";
+                                    else if (msg.includes("CIERRE") || msg.includes("🏁") || msg.includes("TAKE PROFIT")) color = "#f0b90b";
+                                    else if (msg.includes("STOP LOSS") || msg.includes("❌")) color = "#f6465d";
+                                    logsHtml += `<div class="log-row"><span class="log-time">[${{ts}}]</span><span class="log-msg" style="color: ${{color}};">${{msg}}</span></div>`;
+                                }}
+                                document.getElementById('terminal-logs-body').innerHTML = logsHtml;
+                            }}
+
+                            // Actualizar gráfico de dona si cambió
+                            if (assetChartInstance && st.asset_counts) {{
+                                assetChartInstance.data.datasets[0].data = [
+                                    st.asset_counts.SOLUSDT || 0,
+                                    st.asset_counts.DOGEUSDT || 0,
+                                    st.asset_counts.XRPUSDT || 0,
+                                    st.asset_counts.ADAUSDT || 0
+                                ];
+                                assetChartInstance.update();
+                            }}
+                        }})
+                        .catch(err => console.log("Stream update check:", err));
+                }}
 
                 function cambiarEstrategia(modo) {{
                     fetch('/set_strategy?mode=' + modo)
                         .then(res => res.json())
                         .then(data => {{
                             if(data.status === 'ok') {{
-                                location.reload();
+                                document.querySelectorAll('.strat-btn').forEach(b => b.classList.remove('active-strat'));
+                                if (modo === 'V3.0') document.getElementById('btn-v3').classList.add('active-strat');
+                                if (modo === 'V2.7') document.getElementById('btn-v27').classList.add('active-strat');
+                                actualizarEstadoSilencioso();
                             }}
                         }});
                 }}
@@ -503,7 +618,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
                     <div class="status-pill">
                         <div class="pulse-dot"></div>
-                        <span>PURE WS ENGINE {bot_status["ws_status"]}</span>
+                        <span id="ws-pill-status">PURE WS ENGINE {bot_status["ws_status"]}</span>
                     </div>
                 </div>
 
@@ -511,13 +626,13 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 <div class="strategy-selector-card">
                     <div class="strategy-title">
                         <span>🧠 MODO ESTRATÉGICO ACTIVO:</span>
-                        <span style="color: var(--accent-cyan); font-weight: 800;">{bot_status["estrategia_activa"]}</span>
+                        <span id="active-strat-title" style="color: var(--accent-cyan); font-weight: 800;">{bot_status["estrategia_activa"]}</span>
                     </div>
                     <div class="btn-group">
-                        <button class="strat-btn {strat_v3_active}" onclick="cambiarEstrategia('V3.0')">
+                        <button id="btn-v3" class="strat-btn {strat_v3_active}" onclick="cambiarEstrategia('V3.0')">
                             🚀 MODO V3.0 (SURGICAL SFP + FVG + SWEEPS)
                         </button>
-                        <button class="strat-btn {strat_v27_active}" onclick="cambiarEstrategia('V2.7')">
+                        <button id="btn-v27" class="strat-btn {strat_v27_active}" onclick="cambiarEstrategia('V2.7')">
                             ⚡ MODO V2.7 (EMA 9/21 + RSI)
                         </button>
                     </div>
@@ -526,64 +641,55 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <div class="metric-label">Account Balance</div>
-                        <div class="metric-val" style="color: var(--accent-gold);">{bot_status["balance"]}</div>
+                        <div id="val-balance" class="metric-val" style="color: var(--accent-gold);">{bot_status["balance"]}</div>
                         <div class="metric-sub">Binance Live Wallet Sync</div>
                     </div>
 
                     <div class="metric-card">
                         <div class="metric-label">Engine Position Status</div>
-                        <div class="metric-val" style="color: {pos_badge_color}; font-size: 16px; margin-top: 2px;">{arrow_icon} {bot_status["posicion"]}</div>
-                        <div class="metric-sub">Estrategia Activa: {bot_status["estrategia_activa"]}</div>
+                        <div id="val-posicion" class="metric-val" style="color: {pos_badge_color}; font-size: 15px; margin-top: 2px;">{arrow_icon} {bot_status["posicion"]}</div>
+                        <div class="metric-sub">Estrategia Activa</div>
                     </div>
 
                     <div class="metric-card">
                         <div class="metric-label">Active Target Asset</div>
-                        <div class="metric-val" style="color: var(--accent-cyan);">{bot_status["activo_actual"]}</div>
+                        <div id="val-activo" class="metric-val" style="color: var(--accent-cyan); font-size: 15px;">{bot_status["activo_actual"]}</div>
                         <div class="metric-sub">Timeframe: 15m Candles</div>
                     </div>
 
                     <div class="metric-card">
                         <div class="metric-label">Binance Native Orders</div>
-                        <div class="metric-val" style="color: #ffffff; font-size: 14px; margin-top: 2px;">SL: {bot_status["stop_loss"]} | TP: {bot_status["take_profit"]}</div>
-                        <div class="metric-sub">Exchange-Side Target Only • 5x Isolated</div>
+                        <div id="val-ordenes" class="metric-val" style="color: #ffffff; font-size: 13.5px; margin-top: 2px;">SL: {bot_status["stop_loss"]} | TP: {bot_status["take_profit"]}</div>
+                        <div class="metric-sub">Exchange-Side Target • 5x Isolated</div>
                     </div>
 
                     <div class="metric-card">
-                        <div class="metric-label">Memoria V3.0 (Velas 15m)</div>
-                        <div class="metric-val" style="color: {velas_color}; font-size: 20px;">{velas_acumuladas}/96 ({velas_text})</div>
-                        <div class="metric-sub">Requisito para Liquidity Sweeps</div>
+                        <div class="metric-label">Memoria 24h (Velas 15m)</div>
+                        <div class="candle-grid">
+                            <div class="candle-badge" id="candle-SOLUSDT"><span style="color: #a0aec0;">SOL:</span> <span style="color: {'#0ecb81' if candle_counts['SOLUSDT']>=96 else '#f0b90b'};">{candle_counts['SOLUSDT']}/96</span></div>
+                            <div class="candle-badge" id="candle-DOGEUSDT"><span style="color: #a0aec0;">DOGE:</span> <span style="color: {'#0ecb81' if candle_counts['DOGEUSDT']>=96 else '#f0b90b'};">{candle_counts['DOGEUSDT']}/96</span></div>
+                            <div class="candle-badge" id="candle-XRPUSDT"><span style="color: #a0aec0;">XRP:</span> <span style="color: {'#0ecb81' if candle_counts['XRPUSDT']>=96 else '#f0b90b'};">{candle_counts['XRPUSDT']}/96</span></div>
+                            <div class="candle-badge" id="candle-ADAUSDT"><span style="color: #a0aec0;">ADA:</span> <span style="color: {'#0ecb81' if candle_counts['ADAUSDT']>=96 else '#f0b90b'};">{candle_counts['ADAUSDT']}/96</span></div>
+                        </div>
+                        <div class="metric-sub" style="margin-top: 6px;">Ventana requerida: 96 velas (24h)</div>
                     </div>
                 </div>
 
-                <!-- TRADINGVIEW WIDGET (Gráfico en tiempo real Binance WS) -->
-                <div class="chart-card" style="margin-bottom: 20px; height: 450px; padding: 0; overflow: hidden; border: 1px solid var(--panel-border);">
-                    <div class="tradingview-widget-container" style="height:100%;width:100%">
-                      <div id="tradingview_widget" style="height:calc(100% - 32px);width:100%"></div>
-                      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-                      <script type="text/javascript">
-                      new TradingView.widget(
-                      {{
-                      "autosize": true,
-                      "symbol": "BINANCE:SOLUSDT.P",
-                      "interval": "15",
-                      "timezone": "America/La_Paz",
-                      "theme": "dark",
-                      "style": "1",
-                      "locale": "es",
-                      "enable_publishing": false,
-                      "backgroundColor": "rgba(10, 13, 20, 0.92)",
-                      "gridColor": "rgba(255, 255, 255, 0.05)",
-                      "hide_top_toolbar": false,
-                      "hide_legend": false,
-                      "save_image": false,
-                      "container_id": "tradingview_widget",
-                      "studies": [
-                        "Volume@tv-basicstudies",
-                        "RSI@tv-basicstudies"
-                      ]
-                    }}
-                      );
-                      </script>
+                <!-- SELECTOR INTERACTIVO Y GRÁFICO EN VIVO DE LOS 4 ACTIVOS -->
+                <div class="tv-card">
+                    <div class="tv-toolbar">
+                        <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 12.5px; text-transform: uppercase;">
+                            <span>📊 GRÁFICO EN TIEMPO REAL BINANCE WEBSOCKET:</span>
+                        </div>
+                        <div class="tv-tabs">
+                            <button class="tv-tab active-asset" data-symbol="SOLUSDT" onclick="cargarTradingView('SOLUSDT')">🟡 SOL/USDT</button>
+                            <button class="tv-tab" data-symbol="DOGEUSDT" onclick="cargarTradingView('DOGEUSDT')">🟢 DOGE/USDT</button>
+                            <button class="tv-tab" data-symbol="XRPUSDT" onclick="cargarTradingView('XRPUSDT')">🔵 XRP/USDT</button>
+                            <button class="tv-tab" data-symbol="ADAUSDT" onclick="cargarTradingView('ADAUSDT')">🟣 ADA/USDT</button>
+                        </div>
+                    </div>
+                    <div id="tradingview_container" style="height: 480px; width: 100%;">
+                        <div id="tradingview_widget" style="height:100%;width:100%"></div>
                     </div>
                 </div>
 
@@ -591,15 +697,15 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     <div class="chart-card">
                         <div class="chart-header">📊 Rendimiento ({bot_status["estrategia_activa"]})</div>
                         <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; flex-wrap: wrap; gap: 6px;">
-                            <span>Tasa Acierto: {win_rate:.1f}%</span>
-                            <span style="color: {'#0ecb81' if bot_status['pnl_total_usd']>=0 else '#f6465d'};">PnL Neto: {bot_status['pnl_total_usd']:+.4f} USDT</span>
+                            <span id="val-winrate">Tasa Acierto: {win_rate:.1f}%</span>
+                            <span id="val-pnl" style="color: {'#0ecb81' if bot_status['pnl_total_usd']>=0 else '#f6465d'};">PnL Neto: {bot_status['pnl_total_usd']:+.4f} USDT</span>
                         </div>
                         <div class="progress-container">
-                            <div class="progress-bar" style="width: {max(win_rate, 5)}%;"></div>
+                            <div id="val-progress" class="progress-bar" style="width: {max(win_rate, 5)}%;"></div>
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
-                            <span>🟢 Ganadas: {bot_status['wins']}</span>
-                            <span>🔴 Perdedoras: {bot_status['losses']}</span>
+                            <span id="val-wins">🟢 Ganadas: {bot_status['wins']}</span>
+                            <span id="val-losses">🔴 Perdedoras: {bot_status['losses']}</span>
                         </div>
                     </div>
 
@@ -629,7 +735,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                                     <th>Motivo Cierre</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="trades-tbody">
                                 {trades_html}
                             </tbody>
                         </table>
@@ -647,7 +753,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                             <div class="dot dot-green"></div>
                         </div>
                     </div>
-                    <div class="terminal-body">
+                    <div id="terminal-logs-body" class="terminal-body">
                         {logs_html}
                     </div>
                 </div>

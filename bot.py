@@ -881,7 +881,10 @@ class BotFuturosBinance:
                     
                     self.restaurar_posiciones_activas()
                     
-                    # Conectar a los WebSockets Directos de Binance (CERO REST GETs)
+                    # Precarga instantánea de 96 velas (24h) para arrancar 96/96 Listo de inmediato
+                    self.precargar_velas_historicas()
+
+                    # Conectar a los WebSockets Directos de Binance (CERO REST GETs continuos)
                     self.iniciar_websocket_binance()
                     conectado = True
                     
@@ -902,7 +905,31 @@ class BotFuturosBinance:
             registrar_log("Estado: MODO SIMULACIÓN (Paper Trading V3.0)")
             self.qty_precisions = {'SOLUSDT': 2, 'XRPUSDT': 1, 'DOGEUSDT': 0, 'ADAUSDT': 0}
             self.price_precisions = {'SOLUSDT': 2, 'XRPUSDT': 4, 'DOGEUSDT': 5, 'ADAUSDT': 4}
+            self.precargar_velas_historicas()
             self.iniciar_websocket_binance()
+
+    def precargar_velas_historicas(self):
+        """Descarga instantánea de las últimas 96 velas (24h) para iniciar en 96/96 Listo."""
+        registrar_log("📥 Precargando 96 velas históricas de 15m (24h) para los 4 activos...")
+        for s in config.ASSET_POOL:
+            try:
+                klines = []
+                if hasattr(self, 'client') and self.client:
+                    klines = self.client.futures_klines(symbol=s, interval=config.TIMEFRAME, limit=96)
+                else:
+                    url = f"https://fapi.binance.com/fapi/v1/klines?symbol={s}&interval={config.TIMEFRAME}&limit=96"
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        klines = json.loads(resp.read().decode('utf-8'))
+                
+                if klines:
+                    self.kline_history[s] = [float(k[4]) for k in klines]
+                    self.kline_highs[s] = [float(k[2]) for k in klines]
+                    self.kline_lows[s] = [float(k[3]) for k in klines]
+                    self.latest_prices[s] = float(klines[-1][4])
+                    registrar_log(f"✅ {s}: {len(klines)}/96 velas cargadas (Precio: ${self.latest_prices[s]:.4f})")
+            except Exception as e:
+                registrar_log(f"⚠️ Error precarga {s}: {e}")
 
     def cambiar_estrategia(self, nuevo_modo):
         if nuevo_modo in ["V3.0", "V2.7"]:
@@ -1093,9 +1120,9 @@ class BotFuturosBinance:
             curr_close = closes[-1]
             curr_open = closes[-2] if len(closes) > 1 else curr_close
 
-            # Módulo 8 (SFP): Perforó el máximo/mínimo previo pero la vela cerró adentro con mecha
-            sfp_bearish = (curr_high > swing_high) and (curr_close < swing_high) and ((curr_high - max(curr_open, curr_close)) > abs(curr_close - curr_open) * 1.1)
-            sfp_bullish = (curr_low < swing_low) and (curr_close > swing_low) and ((min(curr_open, curr_close) - curr_low) > abs(curr_close - curr_open) * 1.1)
+            # Módulo 8 (SFP): Perforó el máximo/mínimo previo pero la vela cerró adentro con mecha institucional
+            sfp_bearish = (curr_high > swing_high) and (curr_close < swing_high) and ((curr_high - max(curr_open, curr_close)) >= abs(curr_close - curr_open) * 0.8)
+            sfp_bullish = (curr_low < swing_low) and (curr_close > swing_low) and ((min(curr_open, curr_close) - curr_low) >= abs(curr_close - curr_open) * 0.8)
 
             # Módulo 9 (FVG): Ineficiencia de precio
             fvg_bearish = (len(highs) >= 3) and (highs[-1] < lows[-3])

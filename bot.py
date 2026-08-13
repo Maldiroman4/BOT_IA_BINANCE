@@ -705,15 +705,18 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     const height = canvas.height;
                     ctx.clearRect(0, 0, width, height);
 
-                    const profileWidth = Math.min(130, width * 0.22);
-                    const chartRight = width - profileWidth;
+                    // Reserva de 80px a la derecha para no obstruir los números del eje Y ni etiquetas de precio
+                    const priceScaleWidth = 80;
+                    const chartAreaWidth = width - priceScaleWidth;
+                    const profileMaxWidth = Math.min(110, chartAreaWidth * 0.25);
+                    const heatmapBandRight = chartAreaWidth - profileMaxWidth;
 
                     currentHeatmapData.forEach(lvl => {{
                         const y = candleSeries.priceToCoordinate(lvl.price);
                         if (y !== null && y >= 0 && y <= height) {{
                             const intensity = lvl.intensity;
                             
-                            // 1. Franja Térmica Horizontal (Heatmap Strip)
+                            // 1. Franja Térmica Horizontal (Heatmap Strip) en área principal
                             let bandColor;
                             if (intensity > 0.65) {{
                                 bandColor = `rgba(246, 70, 93, ${{0.12 + intensity * 0.35}})`; // Rojo (Hotspot)
@@ -724,13 +727,13 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                             }}
 
                             ctx.fillStyle = bandColor;
-                            ctx.fillRect(0, y - 3, chartRight, 6);
+                            ctx.fillRect(0, y - 3, heatmapBandRight, 6);
 
-                            // 2. Histograma del Perfil Lateral (Right Liquidity Profile)
-                            const barLen = profileWidth * intensity;
-                            const barX = width - barLen;
+                            // 2. Histograma del Perfil Lateral (Right Liquidity Profile) - Pegado justo antes del eje Y
+                            const barLen = profileMaxWidth * intensity;
+                            const barX = chartAreaWidth - barLen;
 
-                            const grad = ctx.createLinearGradient(barX, y, width, y);
+                            const grad = ctx.createLinearGradient(barX, y, chartAreaWidth, y);
                             if (intensity > 0.60) {{
                                 grad.addColorStop(0, '#f0b90b');
                                 grad.addColorStop(1, '#f6465d');

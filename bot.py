@@ -73,6 +73,78 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"status": "ok", "mode": mode}).encode('utf-8'))
             return
 
+        # Endpoint API para datos de velas y niveles de liquidez de Lightweight Charts
+        if parsed_url.path == "/api/klines":
+            query = parse_qs(parsed_url.query)
+            sym = query.get("symbol", ["SOLUSDT"])[0].upper()
+            if sym not in config.ASSET_POOL:
+                sym = "SOLUSDT"
+
+            candles = []
+            swing_high = 0.0
+            swing_low = 0.0
+            markers = []
+
+            if bot_instance and hasattr(bot_instance, 'kline_history'):
+                closes = bot_instance.kline_history.get(sym, [])
+                highs = bot_instance.kline_highs.get(sym, [])
+                lows = bot_instance.kline_lows.get(sym, [])
+                opens = bot_instance.kline_opens.get(sym, [])
+                times = bot_instance.kline_times.get(sym, [])
+
+                n = min(len(closes), len(highs), len(lows), len(opens), len(times))
+                for i in range(n):
+                    candles.append({
+                        "time": times[i],
+                        "open": opens[i],
+                        "high": highs[i],
+                        "low": lows[i],
+                        "close": closes[i]
+                    })
+
+                if n >= 24:
+                    s_highs = pd.Series(highs[:n])
+                    s_lows = pd.Series(lows[:n])
+                    swing_high = float(s_highs.iloc[:-1].rolling(24, min_periods=10).max().iloc[-1])
+                    swing_low = float(s_lows.iloc[:-1].rolling(24, min_periods=10).min().iloc[-1])
+
+                    # Buscar mecheros históricos para colocar marcadores visuales
+                    for i in range(10, n):
+                        h_prev = float(s_highs.iloc[:i].rolling(24, min_periods=10).max().iloc[-1])
+                        l_prev = float(s_lows.iloc[:i].rolling(24, min_periods=10).min().iloc[-1])
+                        c_i, h_i, l_i, o_i, t_i = closes[i], highs[i], lows[i], opens[i], times[i]
+                        
+                        # Mechero bajista (SFP Short)
+                        if (h_i > h_prev) and (c_i < h_prev) and ((h_i - max(o_i, c_i)) >= abs(c_i - o_i) * 0.8):
+                            markers.append({
+                                "time": t_i,
+                                "position": "aboveBar",
+                                "color": "#f6465d",
+                                "shape": "arrowDown",
+                                "text": "🔥 SFP SWEEP SHORT"
+                            })
+                        # Mechero alcista (SFP Long)
+                        elif (l_i < l_prev) and (c_i > l_prev) and ((min(o_i, c_i) - l_i) >= abs(c_i - o_i) * 0.8):
+                            markers.append({
+                                "time": t_i,
+                                "position": "belowBar",
+                                "color": "#0ecb81",
+                                "shape": "arrowUp",
+                                "text": "🔥 SFP SWEEP LONG"
+                            })
+
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "symbol": sym,
+                "candles": candles,
+                "swing_high": round(swing_high, 4),
+                "swing_low": round(swing_low, 4),
+                "markers": markers
+            }).encode('utf-8'))
+            return
+
         # Endpoint API para actualización en tiempo real silenciosa (sin recargar la página)
         if parsed_url.path == "/api/status":
             candle_counts = {}
@@ -177,7 +249,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+            <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
             <style>
                 :root {{
                     --panel-bg: rgba(15, 18, 26, 0.86);
@@ -353,7 +425,6 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 .metric-val {{ font-size: 20px; font-weight: 800; letter-spacing: -0.5px; word-break: break-word; }}
                 .metric-sub {{ font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.3; }}
 
-                /* Panel de Memoria de los 4 Activos */
                 .candle-grid {{
                     display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;
                 }}
@@ -364,7 +435,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     border: 1px solid rgba(255, 255, 255, 0.08);
                 }}
 
-                /* Selector de Activos en TradingView */
+                /* Tarjeta y Toolbar del Gráfico de Liquidez */
                 .tv-card {{
                     background: var(--panel-bg); backdrop-filter: blur(20px);
                     border: 1px solid var(--panel-border); border-radius: 16px;
@@ -374,7 +445,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
                 .tv-toolbar {{
                     display: flex; justify-content: space-between; align-items: center;
-                    padding: 12px 18px; background: rgba(10, 13, 20, 0.95);
+                    padding: 14px 18px; background: rgba(10, 13, 20, 0.95);
                     border-bottom: 1px solid var(--panel-border); flex-wrap: wrap; gap: 10px;
                 }}
 
@@ -394,6 +465,13 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     color: #000; border-color: transparent; font-weight: 800;
                     box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
                 }}
+
+                .indicator-legend {{
+                    display: flex; gap: 14px; align-items: center; font-size: 11px; font-weight: 600; color: #a0aec0;
+                }}
+
+                .legend-item {{ display: flex; align-items: center; gap: 5px; }}
+                .legend-dot {{ width: 8px; height: 8px; border-radius: 50%; }}
 
                 .two-col {{
                     display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;
@@ -488,6 +566,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     .btn-group {{ width: 100%; }}
                     .strat-btn {{ flex: 1; justify-content: center; }}
                     .candle-grid {{ grid-template-columns: 1fr; }}
+                    .indicator-legend {{ display: none; }}
                 }}
             </style>
             <script>
@@ -499,40 +578,110 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 ];
                 let currentIdx = Math.floor(Math.random() * bgImages.length);
                 let currentAsset = 'SOLUSDT';
+                let lwChart = null;
+                let candleSeries = null;
+                let highLine = null;
+                let lowLine = null;
                 let assetChartInstance = null;
 
-                function cargarTradingView(symbol) {{
-                    currentAsset = symbol;
-                    document.querySelectorAll('.tv-tab').forEach(b => {{
-                        if (b.dataset.symbol === symbol) {{
-                            b.classList.add('active-asset');
-                        }} else {{
-                            b.classList.remove('active-asset');
+                function initLightweightChart() {{
+                    const container = document.getElementById('lw_chart_container');
+                    container.innerHTML = '';
+                    
+                    lwChart = LightweightCharts.createChart(container, {{
+                        width: container.clientWidth,
+                        height: 480,
+                        layout: {{
+                            background: {{ type: 'solid', color: 'rgba(10, 13, 20, 0.95)' }},
+                            textColor: '#a0aec0',
+                            fontFamily: 'Inter, sans-serif',
+                            fontSize: 11
+                        }},
+                        grid: {{
+                            vertLines: {{ color: 'rgba(255, 255, 255, 0.04)' }},
+                            horzLines: {{ color: 'rgba(255, 255, 255, 0.04)' }}
+                        }},
+                        crosshair: {{
+                            mode: LightweightCharts.CrosshairMode.Normal,
+                            vertLine: {{ color: 'rgba(0, 242, 254, 0.4)', width: 1, style: 3 }},
+                            horzLine: {{ color: 'rgba(0, 242, 254, 0.4)', width: 1, style: 3 }}
+                        }},
+                        timeScale: {{
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            timeVisible: true,
+                            secondsVisible: false
+                        }},
+                        rightPriceScale: {{
+                            borderColor: 'rgba(255, 255, 255, 0.1)'
                         }}
                     }});
-                    
-                    document.getElementById('tradingview_container').innerHTML = '<div id="tradingview_widget" style="height:100%;width:100%"></div>';
-                    
-                    new TradingView.widget({{
-                        "autosize": true,
-                        "symbol": "BINANCE:" + symbol + ".P",
-                        "interval": "15",
-                        "timezone": "America/La_Paz",
-                        "theme": "dark",
-                        "style": "1",
-                        "locale": "es",
-                        "enable_publishing": false,
-                        "backgroundColor": "rgba(10, 13, 20, 0.95)",
-                        "gridColor": "rgba(255, 255, 255, 0.05)",
-                        "hide_top_toolbar": false,
-                        "hide_legend": false,
-                        "save_image": false,
-                        "container_id": "tradingview_widget",
-                        "studies": [
-                            "Volume@tv-basicstudies",
-                            "RSI@tv-basicstudies"
-                        ]
+
+                    candleSeries = lwChart.addCandlestickSeries({{
+                        upColor: '#0ecb81',
+                        downColor: '#f6465d',
+                        borderUpColor: '#0ecb81',
+                        borderDownColor: '#f6465d',
+                        wickUpColor: '#0ecb81',
+                        wickDownColor: '#f6465d'
                     }});
+
+                    window.addEventListener('resize', () => {{
+                        if (lwChart && container) {{
+                            lwChart.applyOptions({{ width: container.clientWidth }});
+                        }}
+                    }});
+
+                    cargarDatosActivo(currentAsset);
+                }}
+
+                function cargarDatosActivo(symbol) {{
+                    currentAsset = symbol;
+                    document.querySelectorAll('.tv-tab').forEach(b => {{
+                        if (b.dataset.symbol === symbol) b.classList.add('active-asset');
+                        else b.classList.remove('active-asset');
+                    }});
+
+                    fetch('/api/klines?symbol=' + symbol)
+                        .then(r => r.json())
+                        .then(data => {{
+                            if (!candleSeries) return;
+                            
+                            candleSeries.setData(data.candles);
+
+                            if (highLine) candleSeries.removePriceLine(highLine);
+                            if (lowLine) candleSeries.removePriceLine(lowLine);
+
+                            if (data.swing_high > 0) {{
+                                highLine = candleSeries.createPriceLine({{
+                                    price: data.swing_high,
+                                    color: '#f6465d',
+                                    lineWidth: 2,
+                                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                                    axisLabelVisible: true,
+                                    title: 'BSL LIQUIDITY (24h HIGH)'
+                                }});
+                            }}
+
+                            if (data.swing_low > 0) {{
+                                lowLine = candleSeries.createPriceLine({{
+                                    price: data.swing_low,
+                                    color: '#00f2fe',
+                                    lineWidth: 2,
+                                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                                    axisLabelVisible: true,
+                                    title: 'SSL LIQUIDITY (24h LOW)'
+                                }});
+                            }}
+
+                            if (data.markers && data.markers.length > 0) {{
+                                candleSeries.setMarkers(data.markers);
+                            }} else {{
+                                candleSeries.setMarkers([]);
+                            }}
+
+                            lwChart.timeScale().fitContent();
+                        }})
+                        .catch(err => console.error("Error cargando klines:", err));
                 }}
 
                 document.addEventListener("DOMContentLoaded", () => {{
@@ -542,8 +691,8 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         document.body.style.backgroundImage = `url('${{bgImages[currentIdx]}}')`;
                     }}, 8000);
 
-                    // Inicializar TradingView con SOLUSDT
-                    cargarTradingView('SOLUSDT');
+                    // Inicializar el Gráfico Nativo de Liquidez
+                    initLightweightChart();
 
                     // Gráfico de Dona
                     const ctx = document.getElementById('assetChart').getContext('2d');
@@ -565,7 +714,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         }}
                     }});
 
-                    // Polling reactivo silencioso cada 2 segundos (SIN RECARGAR LA PÁGINA)
+                    // Polling reactivo silencioso cada 2 segundos
                     setInterval(actualizarEstadoSilencioso, 2000);
                 }});
 
@@ -710,22 +859,25 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
                 </div>
 
-                <!-- SELECTOR INTERACTIVO Y GRÁFICO EN VIVO DE LOS 4 ACTIVOS -->
+                <!-- VISUALIZADOR NATIVO DE LIQUIDEZ Y MECHEROS SFP -->
                 <div class="tv-card">
                     <div class="tv-toolbar">
                         <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 12.5px; text-transform: uppercase;">
-                            <span>📊 GRÁFICO EN TIEMPO REAL BINANCE WEBSOCKET:</span>
+                            <span>📊 INDICADOR DE LIQUIDEZ Y MECHEROS EN VIVO:</span>
                         </div>
                         <div class="tv-tabs">
-                            <button class="tv-tab active-asset" data-symbol="SOLUSDT" onclick="cargarTradingView('SOLUSDT')">🟡 SOL/USDT</button>
-                            <button class="tv-tab" data-symbol="DOGEUSDT" onclick="cargarTradingView('DOGEUSDT')">🟢 DOGE/USDT</button>
-                            <button class="tv-tab" data-symbol="XRPUSDT" onclick="cargarTradingView('XRPUSDT')">🔵 XRP/USDT</button>
-                            <button class="tv-tab" data-symbol="ADAUSDT" onclick="cargarTradingView('ADAUSDT')">🟣 ADA/USDT</button>
+                            <button class="tv-tab active-asset" data-symbol="SOLUSDT" onclick="cargarDatosActivo('SOLUSDT')">🟡 SOL/USDT</button>
+                            <button class="tv-tab" data-symbol="DOGEUSDT" onclick="cargarDatosActivo('DOGEUSDT')">🟢 DOGE/USDT</button>
+                            <button class="tv-tab" data-symbol="XRPUSDT" onclick="cargarDatosActivo('XRPUSDT')">🔵 XRP/USDT</button>
+                            <button class="tv-tab" data-symbol="ADAUSDT" onclick="cargarDatosActivo('ADAUSDT')">🟣 ADA/USDT</button>
+                        </div>
+                        <div class="indicator-legend">
+                            <div class="legend-item"><div class="legend-dot" style="background: #f6465d;"></div> <span>BSL (24h High)</span></div>
+                            <div class="legend-item"><div class="legend-dot" style="background: #00f2fe;"></div> <span>SSL (24h Low)</span></div>
+                            <div class="legend-item"><div class="legend-dot" style="background: #0ecb81;"></div> <span>🔥 SFP Mechero</span></div>
                         </div>
                     </div>
-                    <div id="tradingview_container" style="height: 480px; width: 100%;">
-                        <div id="tradingview_widget" style="height:100%;width:100%"></div>
-                    </div>
+                    <div id="lw_chart_container" style="height: 480px; width: 100%; position: relative;"></div>
                 </div>
 
                 <div class="two-col">
@@ -852,6 +1004,8 @@ class BotFuturosBinance:
         self.kline_history = {s: [] for s in config.ASSET_POOL}
         self.kline_highs = {s: [] for s in config.ASSET_POOL}
         self.kline_lows = {s: [] for s in config.ASSET_POOL}
+        self.kline_opens = {s: [] for s in config.ASSET_POOL}
+        self.kline_times = {s: [] for s in config.ASSET_POOL}
 
         if not self.paper:
             servidor = "TESTNET" if config.USE_TESTNET else "CUENTA REAL BINANCE"
@@ -926,6 +1080,8 @@ class BotFuturosBinance:
                     self.kline_history[s] = [float(k[4]) for k in klines]
                     self.kline_highs[s] = [float(k[2]) for k in klines]
                     self.kline_lows[s] = [float(k[3]) for k in klines]
+                    self.kline_opens[s] = [float(k[1]) for k in klines]
+                    self.kline_times[s] = [int(k[0]) // 1000 for k in klines]
                     self.latest_prices[s] = float(klines[-1][4])
                     registrar_log(f"✅ {s}: {len(klines)}/96 velas cargadas (Precio: ${self.latest_prices[s]:.4f})")
             except Exception as e:
@@ -951,6 +1107,8 @@ class BotFuturosBinance:
                         close_price = float(kline['c'])
                         high_price = float(kline['h'])
                         low_price = float(kline['l'])
+                        open_price = float(kline['o'])
+                        k_time = int(kline['t']) // 1000
                         is_closed = kline['x']
                         
                         self.latest_prices[symbol] = close_price
@@ -961,16 +1119,20 @@ class BotFuturosBinance:
                             self.kline_history[symbol].append(close_price)
                             self.kline_highs[symbol].append(high_price)
                             self.kline_lows[symbol].append(low_price)
+                            self.kline_opens[symbol].append(open_price)
+                            self.kline_times[symbol].append(k_time)
                             
                             if len(self.kline_history[symbol]) > 120:
                                 self.kline_history[symbol].pop(0)
                                 self.kline_highs[symbol].pop(0)
                                 self.kline_lows[symbol].pop(0)
-                        elif len(self.kline_history[symbol]) == 0 or self.kline_history[symbol][-1] != close_price:
-                            if len(self.kline_history[symbol]) < 30:
-                                self.kline_history[symbol].append(close_price)
-                                self.kline_highs[symbol].append(high_price)
-                                self.kline_lows[symbol].append(low_price)
+                                self.kline_opens[symbol].pop(0)
+                                self.kline_times[symbol].pop(0)
+                        elif len(self.kline_history[symbol]) > 0:
+                            # Actualizar vela en curso en memoria
+                            self.kline_history[symbol][-1] = close_price
+                            self.kline_highs[symbol][-1] = max(self.kline_highs[symbol][-1], high_price)
+                            self.kline_lows[symbol][-1] = min(self.kline_lows[symbol][-1], low_price)
             except Exception:
                 pass
 

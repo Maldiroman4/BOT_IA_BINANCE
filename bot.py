@@ -629,8 +629,8 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         wickDownColor: '#f6465d',
                         priceFormat: {{
                             type: 'price',
-                            precision: 5,
-                            minMove: 0.00001,
+                            precision: 7,
+                            minMove: 0.0000001,
                         }}
                     }});
 
@@ -747,6 +747,9 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                             if (!candleSeries) return;
                             
                             candleSeries.setData(data.candles);
+                            if (data.candles && data.candles.length > 0) {{
+                                window.currentCandle = Object.assign({{}}, data.candles[data.candles.length - 1]);
+                            }}
 
                             if (highLine) candleSeries.removePriceLine(highLine);
                             if (lowLine) candleSeries.removePriceLine(lowLine);

@@ -133,6 +133,41 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                                 "text": "🔥 SFP SWEEP LONG"
                             })
 
+                heatmap_levels = []
+                if n >= 10:
+                    p_min = float(min(lows[:n]))
+                    p_max = float(max(highs[:n]))
+                    if p_max > p_min:
+                        num_bins = 55
+                        bin_size = (p_max - p_min) / num_bins
+                        bin_counts = [0] * num_bins
+                        for i in range(n):
+                            h_i, l_i = highs[i], lows[i]
+                            for b in range(num_bins):
+                                b_low = p_min + b * bin_size
+                                b_high = b_low + bin_size
+                                if not (h_i < b_low or l_i > b_high):
+                                    bin_counts[b] += 1
+                        
+                        max_count = max(bin_counts) if bin_counts else 1
+                        for b in range(num_bins):
+                            price_mid = p_min + (b + 0.5) * bin_size
+                            vol_density = bin_counts[b] / max_count
+                            
+                            dist_sh = abs(price_mid - swing_high) / swing_high if swing_high > 0 else 1.0
+                            dist_sl = abs(price_mid - swing_low) / swing_low if swing_low > 0 else 1.0
+                            
+                            liq_boost = 0.0
+                            for pct in [0.008, 0.018, 0.038, 0.095]:
+                                if abs(dist_sh - pct) < 0.008 or abs(dist_sl - pct) < 0.008:
+                                    liq_boost += 0.35
+                            
+                            intensity = min(1.0, vol_density * 0.45 + liq_boost * 0.55)
+                            heatmap_levels.append({
+                                "price": round(price_mid, 5),
+                                "intensity": round(intensity, 3)
+                            })
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
@@ -141,7 +176,8 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 "candles": candles,
                 "swing_high": round(swing_high, 4),
                 "swing_low": round(swing_low, 4),
-                "markers": markers
+                "markers": markers,
+                "heatmap": heatmap_levels
             }).encode('utf-8'))
             return
 
@@ -634,9 +670,14 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         }}
                     }});
 
+                    lwChart.timeScale().subscribeVisibleLogicalRangeChange(() => {{
+                        dibujarMapaDeCalor();
+                    }});
+
                     window.addEventListener('resize', () => {{
                         if (lwChart && container) {{
                             lwChart.applyOptions({{ width: container.clientWidth }});
+                            dibujarMapaDeCalor();
                         }}
                     }});
 
@@ -646,6 +687,62 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     setInterval(() => {{
                         refrescarNivelesLiquidez(currentAsset);
                     }}, 10000);
+                }}
+
+                let currentHeatmapData = [];
+
+                function dibujarMapaDeCalor(heatmapData) {{
+                    if (heatmapData) currentHeatmapData = heatmapData;
+                    const canvas = document.getElementById('heatmap_canvas');
+                    const container = document.getElementById('lw_chart_container');
+                    if (!canvas || !container || !candleSeries || !currentHeatmapData || currentHeatmapData.length === 0) return;
+
+                    canvas.width = container.clientWidth;
+                    canvas.height = container.clientHeight;
+
+                    const ctx = canvas.getContext('2d');
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    ctx.clearRect(0, 0, width, height);
+
+                    const profileWidth = Math.min(130, width * 0.22);
+                    const chartRight = width - profileWidth;
+
+                    currentHeatmapData.forEach(lvl => {{
+                        const y = candleSeries.priceToCoordinate(lvl.price);
+                        if (y !== null && y >= 0 && y <= height) {{
+                            const intensity = lvl.intensity;
+                            
+                            // 1. Franja Térmica Horizontal (Heatmap Strip)
+                            let bandColor;
+                            if (intensity > 0.65) {{
+                                bandColor = `rgba(246, 70, 93, ${{0.12 + intensity * 0.35}})`; // Rojo (Hotspot)
+                            }} else if (intensity > 0.38) {{
+                                bandColor = `rgba(240, 185, 11, ${{0.08 + intensity * 0.25}})`; // Amarillo
+                            }} else {{
+                                bandColor = `rgba(14, 203, 129, ${{0.04 + intensity * 0.15}})`; // Verde
+                            }}
+
+                            ctx.fillStyle = bandColor;
+                            ctx.fillRect(0, y - 3, chartRight, 6);
+
+                            // 2. Histograma del Perfil Lateral (Right Liquidity Profile)
+                            const barLen = profileWidth * intensity;
+                            const barX = width - barLen;
+
+                            const grad = ctx.createLinearGradient(barX, y, width, y);
+                            if (intensity > 0.60) {{
+                                grad.addColorStop(0, '#f0b90b');
+                                grad.addColorStop(1, '#f6465d');
+                            }} else {{
+                                grad.addColorStop(0, '#9b51e0');
+                                grad.addColorStop(1, '#00f2fe');
+                            }}
+
+                            ctx.fillStyle = grad;
+                            ctx.fillRect(barX, y - 2, barLen, 4);
+                        }}
+                    }});
                 }}
 
                 function conectarStreamBinanceEnVivo(symbol) {{
@@ -730,6 +827,10 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                             }} else {{
                                 candleSeries.setMarkers([]);
                             }}
+
+                            if (data.heatmap) {{
+                                dibujarMapaDeCalor(data.heatmap);
+                            }}
                         }})
                         .catch(err => console.error("Error refrescando liquidez:", err));
                 }}
@@ -780,6 +881,10 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                                 candleSeries.setMarkers(data.markers);
                             }} else {{
                                 candleSeries.setMarkers([]);
+                            }}
+
+                            if (data.heatmap) {{
+                                dibujarMapaDeCalor(data.heatmap);
                             }}
 
                             lwChart.timeScale().fitContent();
@@ -978,12 +1083,16 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                             <button class="tv-tab" data-symbol="ADAUSDT" onclick="cargarDatosActivo('ADAUSDT')">🟣 ADA/USDT</button>
                         </div>
                         <div class="indicator-legend">
-                            <div class="legend-item"><div class="legend-dot" style="background: #f6465d;"></div> <span>BSL (24h High)</span></div>
-                            <div class="legend-item"><div class="legend-dot" style="background: #00f2fe;"></div> <span>SSL (24h Low)</span></div>
+                            <div class="legend-item"><div class="legend-dot" style="background: #f6465d;"></div> <span>🔴 Liquidez Alta</span></div>
+                            <div class="legend-item"><div class="legend-dot" style="background: #f0b90b;"></div> <span>🟡 Liquidez Media</span></div>
+                            <div class="legend-item"><div class="legend-dot" style="background: #9b51e0;"></div> <span>🟣 Perfil Lateral</span></div>
                             <div class="legend-item"><div class="legend-dot" style="background: #0ecb81;"></div> <span>🔥 SFP Mechero</span></div>
                         </div>
                     </div>
-                    <div id="lw_chart_container" style="height: 480px; width: 100%; position: relative;"></div>
+                    <div style="position: relative; width: 100%; height: 480px;">
+                        <div id="lw_chart_container" style="height: 480px; width: 100%;"></div>
+                        <canvas id="heatmap_canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 480px; pointer-events: none; z-index: 5;"></canvas>
+                    </div>
                 </div>
 
                 <div class="two-col">

@@ -583,6 +583,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 let highLine = null;
                 let lowLine = null;
                 let assetChartInstance = null;
+                let binanceWs = null;
 
                 function initLightweightChart() {{
                     const container = document.getElementById('lw_chart_container');
@@ -632,6 +633,85 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     }});
 
                     cargarDatosActivo(currentAsset);
+
+                    // Refrescar niveles de liquidez y marcadores cada 10 segundos
+                    setInterval(() => {{
+                        refrescarNivelesLiquidez(currentAsset);
+                    }}, 10000);
+                }}
+
+                function conectarStreamBinanceEnVivo(symbol) {{
+                    if (binanceWs) {{
+                        try {{ binanceWs.close(); }} catch(e) {{}}
+                        binanceWs = null;
+                    }}
+
+                    const stream = symbol.toLowerCase() + '@kline_15m';
+                    const wsUrl = 'wss://fstream.binance.com/ws/' + stream;
+                    
+                    try {{
+                        binanceWs = new WebSocket(wsUrl);
+                        binanceWs.onmessage = function(event) {{
+                            try {{
+                                const data = JSON.parse(event.data);
+                                if (data.e === 'kline' && candleSeries) {{
+                                    const k = data.k;
+                                    candleSeries.update({{
+                                        time: Math.floor(k.t / 1000),
+                                        open: parseFloat(k.o),
+                                        high: parseFloat(k.h),
+                                        low: parseFloat(k.l),
+                                        close: parseFloat(k.c)
+                                    }});
+                                }}
+                            }} catch(err) {{}}
+                        }};
+                        binanceWs.onerror = function() {{
+                            console.log('WS reconnecting...');
+                        }};
+                    }} catch(e) {{
+                        console.error('Error conectando WS Binance:', e);
+                    }}
+                }}
+
+                function refrescarNivelesLiquidez(symbol) {{
+                    fetch('/api/klines?symbol=' + symbol)
+                        .then(r => r.json())
+                        .then(data => {{
+                            if (!candleSeries) return;
+
+                            if (highLine) candleSeries.removePriceLine(highLine);
+                            if (lowLine) candleSeries.removePriceLine(lowLine);
+
+                            if (data.swing_high > 0) {{
+                                highLine = candleSeries.createPriceLine({{
+                                    price: data.swing_high,
+                                    color: '#f6465d',
+                                    lineWidth: 2,
+                                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                                    axisLabelVisible: true,
+                                    title: 'BSL LIQUIDITY (24h HIGH)'
+                                }});
+                            }}
+
+                            if (data.swing_low > 0) {{
+                                lowLine = candleSeries.createPriceLine({{
+                                    price: data.swing_low,
+                                    color: '#00f2fe',
+                                    lineWidth: 2,
+                                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                                    axisLabelVisible: true,
+                                    title: 'SSL LIQUIDITY (24h LOW)'
+                                }});
+                            }}
+
+                            if (data.markers && data.markers.length > 0) {{
+                                candleSeries.setMarkers(data.markers);
+                            }} else {{
+                                candleSeries.setMarkers([]);
+                            }}
+                        }})
+                        .catch(err => console.error("Error refrescando liquidez:", err));
                 }}
 
                 function cargarDatosActivo(symbol) {{
@@ -680,6 +760,9 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                             }}
 
                             lwChart.timeScale().fitContent();
+
+                            // Conectar WebSocket directo de Binance en vivo
+                            conectarStreamBinanceEnVivo(symbol);
                         }})
                         .catch(err => console.error("Error cargando klines:", err));
                 }}

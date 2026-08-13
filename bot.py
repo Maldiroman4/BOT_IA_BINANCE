@@ -172,6 +172,9 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
 
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        self.send_header('Pragma', 'no-cache')
+        self.send_header('Expires', '0')
         self.end_headers()
         
         candle_counts = {s: 0 for s in config.ASSET_POOL}
@@ -623,7 +626,12 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         borderUpColor: '#0ecb81',
                         borderDownColor: '#f6465d',
                         wickUpColor: '#0ecb81',
-                        wickDownColor: '#f6465d'
+                        wickDownColor: '#f6465d',
+                        priceFormat: {{
+                            type: 'price',
+                            precision: 5,
+                            minMove: 0.00001,
+                        }}
                     }});
 
                     window.addEventListener('resize', () => {{
@@ -646,23 +654,35 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         binanceWs = null;
                     }}
 
-                    const stream = symbol.toLowerCase() + '@kline_15m';
-                    const wsUrl = 'wss://fstream.binance.com/ws/' + stream;
+                    const sym = symbol.toLowerCase();
+                    const streams = sym + '@kline_15m/' + sym + '@aggTrade';
+                    const wsUrl = 'wss://fstream.binance.com/stream?streams=' + streams;
                     
                     try {{
                         binanceWs = new WebSocket(wsUrl);
                         binanceWs.onmessage = function(event) {{
                             try {{
-                                const data = JSON.parse(event.data);
+                                const payload = JSON.parse(event.data);
+                                if (!payload.data) return;
+                                const data = payload.data;
+                                
                                 if (data.e === 'kline' && candleSeries) {{
                                     const k = data.k;
-                                    candleSeries.update({{
+                                    window.currentCandle = {{
                                         time: Math.floor(k.t / 1000),
                                         open: parseFloat(k.o),
                                         high: parseFloat(k.h),
                                         low: parseFloat(k.l),
                                         close: parseFloat(k.c)
-                                    }});
+                                    }};
+                                    candleSeries.update(window.currentCandle);
+                                }} 
+                                else if (data.e === 'aggTrade' && candleSeries && window.currentCandle) {{
+                                    const price = parseFloat(data.p);
+                                    window.currentCandle.close = price;
+                                    if (price > window.currentCandle.high) window.currentCandle.high = price;
+                                    if (price < window.currentCandle.low) window.currentCandle.low = price;
+                                    candleSeries.update(window.currentCandle);
                                 }}
                             }} catch(err) {{}}
                         }};

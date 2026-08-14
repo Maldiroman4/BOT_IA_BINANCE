@@ -288,7 +288,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
             <style>
                 :root {{
                     --panel-bg: rgba(15, 18, 26, 0.86);
@@ -617,225 +617,35 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                 ];
                 let currentIdx = Math.floor(Math.random() * bgImages.length);
                 let currentAsset = 'SOLUSDT';
-                let lwChart = null;
-                let candleSeries = null;
-                let highLine = null;
-                let lowLine = null;
+                let tvWidget = null;
                 let assetChartInstance = null;
-                let binanceWs = null;
 
-                function initLightweightChart() {{
-                    const container = document.getElementById('lw_chart_container');
+                function initTradingViewWidget(symbol) {{
+                    const container = document.getElementById('tradingview_widget_container');
+                    if (!container) return;
                     container.innerHTML = '';
                     
-                    lwChart = LightweightCharts.createChart(container, {{
-                        width: container.clientWidth,
-                        height: 480,
-                        layout: {{
-                            background: {{ type: 'solid', color: 'rgba(10, 13, 20, 0.95)' }},
-                            textColor: '#a0aec0',
-                            fontFamily: 'Inter, sans-serif',
-                            fontSize: 11
-                        }},
-                        grid: {{
-                            vertLines: {{ color: 'rgba(255, 255, 255, 0.04)' }},
-                            horzLines: {{ color: 'rgba(255, 255, 255, 0.04)' }}
-                        }},
-                        crosshair: {{
-                            mode: LightweightCharts.CrosshairMode.Normal,
-                            vertLine: {{ color: 'rgba(0, 242, 254, 0.4)', width: 1, style: 3 }},
-                            horzLine: {{ color: 'rgba(0, 242, 254, 0.4)', width: 1, style: 3 }}
-                        }},
-                        timeScale: {{
-                            borderColor: 'rgba(255, 255, 255, 0.1)',
-                            timeVisible: true,
-                            secondsVisible: false
-                        }},
-                        rightPriceScale: {{
-                            borderColor: 'rgba(255, 255, 255, 0.1)'
-                        }}
-                    }});
-
-                    candleSeries = lwChart.addCandlestickSeries({{
-                        upColor: '#0ecb81',
-                        downColor: '#f6465d',
-                        borderUpColor: '#0ecb81',
-                        borderDownColor: '#f6465d',
-                        wickUpColor: '#0ecb81',
-                        wickDownColor: '#f6465d',
-                        priceFormat: {{
-                            type: 'price',
-                            precision: 7,
-                            minMove: 0.0000001,
-                        }}
-                    }});
-
-                    lwChart.timeScale().subscribeVisibleLogicalRangeChange(() => {{
-                        dibujarMapaDeCalor();
-                    }});
-
-                    window.addEventListener('resize', () => {{
-                        if (lwChart && container) {{
-                            lwChart.applyOptions({{ width: container.clientWidth }});
-                            dibujarMapaDeCalor();
-                        }}
-                    }});
-
-                    cargarDatosActivo(currentAsset);
-
-                    // Refrescar niveles de liquidez y marcadores cada 10 segundos
-                    setInterval(() => {{
-                        refrescarNivelesLiquidez(currentAsset);
-                    }}, 10000);
-                }}
-
-                let currentHeatmapData = [];
-
-                function dibujarMapaDeCalor(heatmapData) {{
-                    if (heatmapData) currentHeatmapData = heatmapData;
-                    const canvas = document.getElementById('heatmap_canvas');
-                    const container = document.getElementById('lw_chart_container');
-                    if (!canvas || !container || !candleSeries || !currentHeatmapData || currentHeatmapData.length === 0) return;
-
-                    canvas.width = container.clientWidth;
-                    canvas.height = container.clientHeight;
-
-                    const ctx = canvas.getContext('2d');
-                    const width = canvas.width;
-                    const height = canvas.height;
-                    ctx.clearRect(0, 0, width, height);
-
-                    // Reserva de 80px a la derecha para no obstruir los números del eje Y ni etiquetas de precio
-                    const priceScaleWidth = 80;
-                    const chartAreaWidth = width - priceScaleWidth;
-                    const profileMaxWidth = Math.min(110, chartAreaWidth * 0.25);
-                    const heatmapBandRight = chartAreaWidth - profileMaxWidth;
-
-                    currentHeatmapData.forEach(lvl => {{
-                        const y = candleSeries.priceToCoordinate(lvl.price);
-                        if (y !== null && y >= 0 && y <= height) {{
-                            const intensity = lvl.intensity;
-                            
-                            // 1. Franja Térmica Horizontal (Heatmap Strip) en área principal
-                            let bandColor;
-                            if (intensity > 0.65) {{
-                                bandColor = `rgba(246, 70, 93, ${{0.12 + intensity * 0.35}})`; // Rojo (Hotspot)
-                            }} else if (intensity > 0.38) {{
-                                bandColor = `rgba(240, 185, 11, ${{0.08 + intensity * 0.25}})`; // Amarillo
-                            }} else {{
-                                bandColor = `rgba(14, 203, 129, ${{0.04 + intensity * 0.15}})`; // Verde
-                            }}
-
-                            ctx.fillStyle = bandColor;
-                            ctx.fillRect(0, y - 3, heatmapBandRight, 6);
-
-                            // 2. Histograma del Perfil Lateral (Right Liquidity Profile) - Pegado justo antes del eje Y
-                            const barLen = profileMaxWidth * intensity;
-                            const barX = chartAreaWidth - barLen;
-
-                            const grad = ctx.createLinearGradient(barX, y, chartAreaWidth, y);
-                            if (intensity > 0.60) {{
-                                grad.addColorStop(0, '#f0b90b');
-                                grad.addColorStop(1, '#f6465d');
-                            }} else {{
-                                grad.addColorStop(0, '#9b51e0');
-                                grad.addColorStop(1, '#00f2fe');
-                            }}
-
-                            ctx.fillStyle = grad;
-                            ctx.fillRect(barX, y - 2, barLen, 4);
-                        }}
-                    }});
-                }}
-
-                function conectarStreamBinanceEnVivo(symbol) {{
-                    if (binanceWs) {{
-                        try {{ binanceWs.close(); }} catch(e) {{}}
-                        binanceWs = null;
-                    }}
-
-                    const sym = symbol.toLowerCase();
-                    const streams = sym + '@kline_15m/' + sym + '@aggTrade';
-                    const wsUrl = 'wss://fstream.binance.com/stream?streams=' + streams;
+                    const tvSymbol = 'BINANCE:' + symbol + '.P';
                     
-                    try {{
-                        binanceWs = new WebSocket(wsUrl);
-                        binanceWs.onmessage = function(event) {{
-                            try {{
-                                const payload = JSON.parse(event.data);
-                                if (!payload.data) return;
-                                const data = payload.data;
-                                
-                                if (data.e === 'kline' && candleSeries) {{
-                                    const k = data.k;
-                                    window.currentCandle = {{
-                                        time: Math.floor(k.t / 1000),
-                                        open: parseFloat(k.o),
-                                        high: parseFloat(k.h),
-                                        low: parseFloat(k.l),
-                                        close: parseFloat(k.c)
-                                    }};
-                                    candleSeries.update(window.currentCandle);
-                                }} 
-                                else if (data.e === 'aggTrade' && candleSeries && window.currentCandle) {{
-                                    const price = parseFloat(data.p);
-                                    window.currentCandle.close = price;
-                                    if (price > window.currentCandle.high) window.currentCandle.high = price;
-                                    if (price < window.currentCandle.low) window.currentCandle.low = price;
-                                    candleSeries.update(window.currentCandle);
-                                }}
-                            }} catch(err) {{}}
-                        }};
-                        binanceWs.onerror = function() {{
-                            console.log('WS reconnecting...');
-                        }};
-                    }} catch(e) {{
-                        console.error('Error conectando WS Binance:', e);
-                    }}
-                }}
-
-                function refrescarNivelesLiquidez(symbol) {{
-                    fetch('/api/klines?symbol=' + symbol)
-                        .then(r => r.json())
-                        .then(data => {{
-                            if (!candleSeries) return;
-
-                            if (highLine) candleSeries.removePriceLine(highLine);
-                            if (lowLine) candleSeries.removePriceLine(lowLine);
-
-                            if (data.swing_high > 0) {{
-                                highLine = candleSeries.createPriceLine({{
-                                    price: data.swing_high,
-                                    color: '#f6465d',
-                                    lineWidth: 2,
-                                    lineStyle: LightweightCharts.LineStyle.Dashed,
-                                    axisLabelVisible: true,
-                                    title: 'BSL LIQUIDITY (24h HIGH)'
-                                }});
-                            }}
-
-                            if (data.swing_low > 0) {{
-                                lowLine = candleSeries.createPriceLine({{
-                                    price: data.swing_low,
-                                    color: '#00f2fe',
-                                    lineWidth: 2,
-                                    lineStyle: LightweightCharts.LineStyle.Dashed,
-                                    axisLabelVisible: true,
-                                    title: 'SSL LIQUIDITY (24h LOW)'
-                                }});
-                            }}
-
-                            if (data.markers && data.markers.length > 0) {{
-                                candleSeries.setMarkers(data.markers);
-                            }} else {{
-                                candleSeries.setMarkers([]);
-                            }}
-
-                            if (data.heatmap) {{
-                                dibujarMapaDeCalor(data.heatmap);
-                            }}
-                        }})
-                        .catch(err => console.error("Error refrescando liquidez:", err));
+                    tvWidget = new TradingView.widget({{
+                        "autosize": true,
+                        "symbol": tvSymbol,
+                        "interval": "15",
+                        "timezone": "Etc/UTC",
+                        "theme": "dark",
+                        "style": "1",
+                        "locale": "es",
+                        "toolbar_bg": "#0a0d14",
+                        "enable_publishing": false,
+                        "hide_side_toolbar": false,
+                        "allow_symbol_change": true,
+                        "container_id": "tradingview_widget_container",
+                        "studies": [
+                            "STD;EMA",
+                            "STD;RSI",
+                            "STD;Volume"
+                        ]
+                    }});
                 }}
 
                 function cargarDatosActivo(symbol) {{
@@ -845,57 +655,7 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         else b.classList.remove('active-asset');
                     }});
 
-                    fetch('/api/klines?symbol=' + symbol)
-                        .then(r => r.json())
-                        .then(data => {{
-                            if (!candleSeries) return;
-                            
-                            candleSeries.setData(data.candles);
-                            if (data.candles && data.candles.length > 0) {{
-                                window.currentCandle = Object.assign({{}}, data.candles[data.candles.length - 1]);
-                            }}
-
-                            if (highLine) candleSeries.removePriceLine(highLine);
-                            if (lowLine) candleSeries.removePriceLine(lowLine);
-
-                            if (data.swing_high > 0) {{
-                                highLine = candleSeries.createPriceLine({{
-                                    price: data.swing_high,
-                                    color: '#f6465d',
-                                    lineWidth: 2,
-                                    lineStyle: LightweightCharts.LineStyle.Dashed,
-                                    axisLabelVisible: true,
-                                    title: 'BSL LIQUIDITY (24h HIGH)'
-                                }});
-                            }}
-
-                            if (data.swing_low > 0) {{
-                                lowLine = candleSeries.createPriceLine({{
-                                    price: data.swing_low,
-                                    color: '#00f2fe',
-                                    lineWidth: 2,
-                                    lineStyle: LightweightCharts.LineStyle.Dashed,
-                                    axisLabelVisible: true,
-                                    title: 'SSL LIQUIDITY (24h LOW)'
-                                }});
-                            }}
-
-                            if (data.markers && data.markers.length > 0) {{
-                                candleSeries.setMarkers(data.markers);
-                            }} else {{
-                                candleSeries.setMarkers([]);
-                            }}
-
-                            if (data.heatmap) {{
-                                dibujarMapaDeCalor(data.heatmap);
-                            }}
-
-                            lwChart.timeScale().fitContent();
-
-                            // Conectar WebSocket directo de Binance en vivo
-                            conectarStreamBinanceEnVivo(symbol);
-                        }})
-                        .catch(err => console.error("Error cargando klines:", err));
+                    initTradingViewWidget(symbol);
                 }}
 
                 document.addEventListener("DOMContentLoaded", () => {{
@@ -905,8 +665,8 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                         document.body.style.backgroundImage = `url('${{bgImages[currentIdx]}}')`;
                     }}, 8000);
 
-                    // Inicializar el Gráfico Nativo de Liquidez
-                    initLightweightChart();
+                    // Inicializar el Gráfico Oficial de TradingView Pro
+                    initTradingViewWidget(currentAsset);
 
                     // Gráfico de Dona
                     const ctx = document.getElementById('assetChart').getContext('2d');
@@ -1073,11 +833,11 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                     </div>
                 </div>
 
-                <!-- VISUALIZADOR NATIVO DE LIQUIDEZ Y MECHEROS SFP -->
+                <!-- GRÁFICO PROFESIONAL OFICIAL TRADINGVIEW -->
                 <div class="tv-card">
                     <div class="tv-toolbar">
                         <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 12.5px; text-transform: uppercase;">
-                            <span>📊 INDICADOR DE LIQUIDEZ Y MECHEROS EN VIVO:</span>
+                            <span>📊 GRÁFICO OFICIAL TRADINGVIEW PRO (BINANCE FUTURES EN VIVO):</span>
                         </div>
                         <div class="tv-tabs">
                             <button class="tv-tab active-asset" data-symbol="SOLUSDT" onclick="cargarDatosActivo('SOLUSDT')">🟡 SOL/USDT</button>
@@ -1086,15 +846,12 @@ class DashboardWebHandler(BaseHTTPRequestHandler):
                             <button class="tv-tab" data-symbol="ADAUSDT" onclick="cargarDatosActivo('ADAUSDT')">🟣 ADA/USDT</button>
                         </div>
                         <div class="indicator-legend">
-                            <div class="legend-item"><div class="legend-dot" style="background: #f6465d;"></div> <span>🔴 Liquidez Alta</span></div>
-                            <div class="legend-item"><div class="legend-dot" style="background: #f0b90b;"></div> <span>🟡 Liquidez Media</span></div>
-                            <div class="legend-item"><div class="legend-dot" style="background: #9b51e0;"></div> <span>🟣 Perfil Lateral</span></div>
-                            <div class="legend-item"><div class="legend-dot" style="background: #0ecb81;"></div> <span>🔥 SFP Mechero</span></div>
+                            <div class="legend-item"><div class="legend-dot" style="background: #00f2fe;"></div> <span>Feed Directo Oficial TradingView</span></div>
+                            <div class="legend-item"><div class="legend-dot" style="background: #0ecb81;"></div> <span>Herramientas e Indicadores Pro</span></div>
                         </div>
                     </div>
-                    <div style="position: relative; width: 100%; height: 480px;">
-                        <div id="lw_chart_container" style="height: 480px; width: 100%;"></div>
-                        <canvas id="heatmap_canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 480px; pointer-events: none; z-index: 5;"></canvas>
+                    <div style="width: 100%; height: 530px;">
+                        <div id="tradingview_widget_container" style="height: 530px; width: 100%;"></div>
                     </div>
                 </div>
 
@@ -1440,22 +1197,37 @@ class BotFuturosBinance:
         precision = self.price_precisions.get(symbol, 4)
         return round(price, precision)
 
-    def calcular_precios_sl_tp(self, symbol, side, entry):
+    def calcular_precios_sl_tp(self, symbol, side, entry, swing_ref=None):
         if self.strategy_mode == "V3.0":
-            # Ratios Quirúrgicos V3.0: TP +3.0% / SL -1.0% (Ratio 3 a 1)
-            tp_pct = 0.030
-            sl_pct = 0.010
+            # Ratios Quirúrgicos V3.1: TP +3.5% / SL Estructural técnico en la punta de la mecha
+            tp_pct = 0.035
+            if swing_ref and swing_ref > 0:
+                if side == 'LONG':
+                    # SL justo debajo del mínimo de barrido (-0.15% de margen)
+                    sl = max(swing_ref * 0.9985, entry * 0.985)
+                    tp = entry * (1.0 + tp_pct)
+                else: # SHORT
+                    # SL justo arriba del máximo de barrido (+0.15% de margen)
+                    sl = min(swing_ref * 1.0015, entry * 1.015)
+                    tp = entry * (1.0 - tp_pct)
+            else:
+                sl_pct = 0.012
+                if side == 'LONG':
+                    sl = entry * (1.0 - sl_pct)
+                    tp = entry * (1.0 + tp_pct)
+                else:
+                    sl = entry * (1.0 + sl_pct)
+                    tp = entry * (1.0 - tp_pct)
         else:
             # Ratios Estándar V2.7: TP +2.5% / SL -1.2%
             tp_pct = config.TAKE_PROFIT_PCT
             sl_pct = config.STOP_LOSS_PCT
-
-        if side == 'LONG':
-            sl = entry * (1.0 - sl_pct)
-            tp = entry * (1.0 + tp_pct)
-        else: # SHORT
-            sl = entry * (1.0 + sl_pct)
-            tp = entry * (1.0 - tp_pct)
+            if side == 'LONG':
+                sl = entry * (1.0 - sl_pct)
+                tp = entry * (1.0 + tp_pct)
+            else:
+                sl = entry * (1.0 + sl_pct)
+                tp = entry * (1.0 - tp_pct)
         
         sl_rounded = self.ajustar_precision_precio(symbol, sl)
         tp_rounded = self.ajustar_precision_precio(symbol, tp)
@@ -1480,40 +1252,51 @@ class BotFuturosBinance:
         closes = self.kline_history.get(symbol, [])
         highs = self.kline_highs.get(symbol, [])
         lows = self.kline_lows.get(symbol, [])
+        opens = self.kline_opens.get(symbol, [])
 
-        if len(closes) < 25:
-            return False, False, self.latest_prices.get(symbol, 0.0), "SIN_DATOS"
+        if len(closes) < 30:
+            return False, False, self.latest_prices.get(symbol, 0.0), "SIN_DATOS", 0.0
 
         price = closes[-1]
 
-        # MODO V3.0: ESTRATEGIA SURGICAL (MÓDULOS 8, 9 Y 10 COMBINADOS)
+        # MODO V3.0 (V3.1 SURGICAL): ESTRATEGIA SURGICAL CON FILTROS ANTI-PÉRDIDAS
         if self.strategy_mode == "V3.0":
             s_highs = pd.Series(highs)
             s_lows = pd.Series(lows)
             s_closes = pd.Series(closes)
 
-            swing_high = s_highs.iloc[:-1].rolling(24, min_periods=10).max().iloc[-1]
-            swing_low = s_lows.iloc[:-1].rolling(24, min_periods=10).min().iloc[-1]
+            # 1. Filtro de Tendencia Macro (EMA de tendencia para no operar contra corriente)
+            ema_trend = ta.trend.ema_indicator(s_closes, window=min(50, len(closes)-1))
+            macro_bullish = closes[-1] > ema_trend.iloc[-1]
+            macro_bearish = closes[-1] < ema_trend.iloc[-1]
+
+            swing_high = float(s_highs.iloc[:-1].rolling(24, min_periods=10).max().iloc[-1])
+            swing_low = float(s_lows.iloc[:-1].rolling(24, min_periods=10).min().iloc[-1])
 
             curr_high = highs[-1]
             curr_low = lows[-1]
             curr_close = closes[-1]
-            curr_open = closes[-2] if len(closes) > 1 else curr_close
+            curr_open = opens[-1] if len(opens) > 0 else (closes[-2] if len(closes) > 1 else curr_close)
+            candle_range = max(curr_high - curr_low, 0.000001)
 
-            # Módulo 8 (SFP): Perforó el máximo/mínimo previo pero la vela cerró adentro con mecha institucional
-            sfp_bearish = (curr_high > swing_high) and (curr_close < swing_high) and ((curr_high - max(curr_open, curr_close)) >= abs(curr_close - curr_open) * 0.8)
-            sfp_bullish = (curr_low < swing_low) and (curr_close > swing_low) and ((min(curr_open, curr_close) - curr_low) >= abs(curr_close - curr_open) * 0.8)
+            top_wick = curr_high - max(curr_open, curr_close)
+            bottom_wick = min(curr_open, curr_close) - curr_low
 
-            # Módulo 9 (FVG): Ineficiencia de precio
-            fvg_bearish = (len(highs) >= 3) and (highs[-1] < lows[-3])
-            fvg_bullish = (len(lows) >= 3) and (lows[-1] > highs[-3])
+            # 2. Mechero SFP Estricto: Absorción institucional real (mecha >= 50% de la vela total)
+            sfp_bearish = (curr_high > swing_high) and (curr_close < swing_high) and ((top_wick / candle_range) >= 0.50)
+            sfp_bullish = (curr_low < swing_low) and (curr_close > swing_low) and ((bottom_wick / candle_range) >= 0.50)
 
-            # Módulo 10 (Liquidity Sweeps): Sweep en nivel clave
-            setup_short = sfp_bearish or (curr_high > swing_high and fvg_bearish)
-            setup_long = sfp_bullish or (curr_low < swing_low and fvg_bullish)
+            # 3. Confirmación con RSI para evitar compras en sobrecompra extrema o ventas en sobreventa
+            rsi_series = ta.momentum.rsi(s_closes, window=min(14, len(closes)-1))
+            curr_rsi = rsi_series.iloc[-1] if len(rsi_series) > 0 and not pd.isna(rsi_series.iloc[-1]) else 50.0
 
-            setup_desc = "V3.0 SURGICAL SFP+FVG+SWEEP"
-            return setup_long, setup_short, price, setup_desc
+            # Señales con confirmación triple (SFP + Mecha + Tendencia/RSI)
+            setup_short = sfp_bearish and macro_bearish and (curr_rsi > 42)
+            setup_long = sfp_bullish and macro_bullish and (curr_rsi < 58)
+
+            swing_ref = curr_high if setup_short else (curr_low if setup_long else 0.0)
+            setup_desc = "V3.1 SURGICAL (SFP + EMA TREND + RSI FILTER)"
+            return setup_long, setup_short, price, setup_desc, swing_ref
 
         # MODO V2.7: ESTRATEGIA ESTÁNDAR (EMA 9/21 + RSI)
         else:
@@ -1529,33 +1312,36 @@ class BotFuturosBinance:
             long_sig = (prev_fast <= prev_slow) and (last_fast > last_slow) and (last_rsi < 60)
             short_sig = (prev_fast >= prev_slow) and (last_fast < last_slow) and (last_rsi > 40)
 
-            return long_sig, short_sig, price, "V2.7 EMA 9/21 + RSI"
+            return long_sig, short_sig, price, "V2.7 EMA 9/21 + RSI", 0.0
 
     def escanear_mercado_local(self):
         mejor_activo = None
         mejor_direccion = None
         mejor_precio = 0.0
+        mejor_swing_ref = 0.0
 
         for symbol in config.ASSET_POOL:
             try:
-                long_sig, short_sig, price, desc = self.evaluar_senales_locales(symbol)
+                long_sig, short_sig, price, desc, swing_ref = self.evaluar_senales_locales(symbol)
 
                 if long_sig:
                     mejor_activo = symbol
                     mejor_direccion = 'LONG'
                     mejor_precio = price
+                    mejor_swing_ref = swing_ref
                     break
                 elif short_sig:
                     mejor_activo = symbol
                     mejor_direccion = 'SHORT'
                     mejor_precio = price
+                    mejor_swing_ref = swing_ref
                     break
             except Exception:
                 pass
 
-        return mejor_activo, mejor_direccion, mejor_precio
+        return mejor_activo, mejor_direccion, mejor_precio, mejor_swing_ref
 
-    def abrir_posicion(self, symbol, side, price):
+    def abrir_posicion(self, symbol, side, price, swing_ref=0.0):
         self.sincronizar_saldo_binance()
         
         valor_nocional = self.margin * self.leverage
@@ -1566,7 +1352,7 @@ class BotFuturosBinance:
             registrar_log(f"⚠️ Cantidad calculada demasiado pequeña para {symbol}")
             return
 
-        sl_price, tp_price = self.calcular_precios_sl_tp(symbol, side, price)
+        sl_price, tp_price = self.calcular_precios_sl_tp(symbol, side, price, swing_ref=swing_ref)
         
         if not self.paper:
             config_ok = self._configurar_cuenta_binance(symbol)
@@ -1733,9 +1519,9 @@ class BotFuturosBinance:
 
                 if self.position is None:
                     # Escanear señales usando los datos 100% capturados por WebSocket sin enviar peticiones GET
-                    activo, direccion, precio = self.escanear_mercado_local()
+                    activo, direccion, precio, swing_ref = self.escanear_mercado_local()
                     if activo:
-                        self.abrir_posicion(activo, direccion, price=precio)
+                        self.abrir_posicion(activo, direccion, price=precio, swing_ref=swing_ref)
                     else:
                         bot_status["posicion"] = f"📡 SIN POSICIÓN (Escaneando WebSocket {self.strategy_mode})"
                         bot_status["activo_actual"] = f"Escaneando 4 activos en Modo {self.strategy_mode} 15m"
